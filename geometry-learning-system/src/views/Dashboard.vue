@@ -1,7 +1,7 @@
 <template>
   <div class="student-dashboard">
     <div class="dashboard-header">
-      <h2>Welcome back, {{ userEmail }}</h2>
+      <h2>Welcome back, {{ userName }}</h2>
       <p class="welcome-message">Track your learning journey and continue where you left off</p>
     </div>
 
@@ -20,10 +20,9 @@
 
     <div class="modules-grid">
       <div 
-        v-for="module in allModules" 
+        v-for="module in unlockedModules" 
         :key="module.id"
         class="module-card"
-        :class="{ 'locked': !module.unlocked }"
       >
         <div class="module-icon">
           <span>{{ getModuleIcon(module.id) }}</span>
@@ -39,15 +38,11 @@
           <span class="completion-text">{{ module.completion }}%</span>
         </div>
         <router-link 
-          v-if="module.unlocked"
           :to="getModuleRoute(module.id)"
           class="action-button"
         >
           {{ module.completion === 0 ? 'Start' : module.completion === 100 ? 'Review' : 'Continue' }}
         </router-link>
-        <button v-else class="action-button locked" disabled>
-          Locked
-        </button>
       </div>
     </div>
 
@@ -69,27 +64,32 @@ import { auth, db } from '@/firebase'
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
 
 // User data
-const userEmail = auth.currentUser?.email || ''
+const userName = ref('')
 const progressData = ref([])
 const recentActivity = ref([])
 
-// All possible modules
+// All possible modules - all set to unlocked: true
 const allModules = ref([
   { id: 'learn', name: 'Learn', completion: 0, unlocked: true },
-  { id: 'visualize', name: 'Visualize', completion: 0, unlocked: false },
-  { id: 'practice', name: 'Practice', completion: 0, unlocked: false },
-  { id: 'assessment', name: 'Assessment', completion: 0, unlocked: false },
-  { id: 'review', name: 'Review', completion: 0, unlocked: false },
-  { id: 'apply', name: 'Apply', completion: 0, unlocked: false },
+  { id: 'visualize', name: 'Visualize', completion: 0, unlocked: true },
+  { id: 'practice', name: 'Practice', completion: 0, unlocked: true },
+  { id: 'assessment', name: 'Assessment', completion: 0, unlocked: true },
+  { id: 'review', name: 'Review', completion: 0, unlocked: true },
+  { id: 'apply', name: 'Apply', completion: 0, unlocked: true },
   { id: 'support', name: 'Support', completion: 0, unlocked: true },
   { id: 'progress', name: 'Progress Tracked', completion: 0, unlocked: true }
 ])
 
-// Computed overall progress
+// Computed property to filter only unlocked modules
+const unlockedModules = computed(() => {
+  return allModules.value.filter(module => module.unlocked)
+})
+
+// Computed overall progress based on unlocked modules only
 const overallProgress = computed(() => {
-  if (progressData.value.length === 0) return 0
-  const completedModules = progressData.value.filter(m => m.completion === 100)
-  return Math.round((completedModules.length / allModules.value.length) * 100)
+  if (unlockedModules.value.length === 0) return 0
+  const completedModules = unlockedModules.value.filter(m => m.completion === 100)
+  return Math.round((completedModules.length / unlockedModules.value.length) * 100)
 })
 
 // Helper functions
@@ -118,18 +118,28 @@ const formatTime = (timestamp) => {
 // Fetch data on mount
 onMounted(async () => {
   try {
+    // Fetch user profile to get name from 'users' collection
+    const userDocSnap = await getDoc(doc(db, 'users', auth.currentUser.uid))
+    if (userDocSnap.exists()) {
+      const userData = userDocSnap.data()
+      userName.value = userData.name || auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Student'
+    } else {
+      // Fallback to auth displayName or email if no name found
+      userName.value = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Student'
+    }
+
     // Fetch progress data
     const docSnap = await getDoc(doc(db, 'progress', auth.currentUser.uid))
     if (docSnap.exists()) {
       progressData.value = docSnap.data().modules || []
       
-      // Update allModules with actual progress
+      // Update allModules with actual progress, keeping all unlocked
       allModules.value = allModules.value.map(module => {
         const progressModule = progressData.value.find(m => m.id === module.id)
         return {
           ...module,
           completion: progressModule?.completion || 0,
-          unlocked: progressModule?.unlocked || module.unlocked
+          unlocked: true // Force all modules to be unlocked
         }
       })
     }
@@ -146,6 +156,8 @@ onMounted(async () => {
     
   } catch (error) {
     console.error('Error loading dashboard data:', error)
+    // Fallback username if there's an error
+    userName.value = auth.currentUser?.displayName || auth.currentUser?.email?.split('@')[0] || 'Student'
   }
 })
 </script>
@@ -227,11 +239,6 @@ onMounted(async () => {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-.module-card.locked {
-  opacity: 0.7;
-  background-color: #f5f5f5;
-}
-
 .module-icon {
   font-size: 2rem;
   margin-bottom: 1rem;
@@ -269,11 +276,6 @@ onMounted(async () => {
 
 .action-button:hover {
   background-color: #2980b9;
-}
-
-.action-button.locked {
-  background-color: #95a5a6;
-  cursor: not-allowed;
 }
 
 .recent-activity {
