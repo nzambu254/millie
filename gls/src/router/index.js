@@ -24,11 +24,6 @@ const routes = [
   meta: { requiresAuth: true, role: 'admin' }
 },
 {
-  path: '/register',
-  name: 'Register',
-  component: () => import('@/views/Register.vue')
-},
-{
     path: '/login',
     name: 'Login',
     component: Login
