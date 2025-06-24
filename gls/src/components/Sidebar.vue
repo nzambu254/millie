@@ -3,7 +3,7 @@
     <div class="sidebar-inner">
       <!-- Logo/Branding Section -->
       <div class="sidebar-brand">
-        <h2>{{ isAdmin ? 'Admin Panel' : 'Geometry Learning' }}</h2>
+        <h2>{{ isAdmin ? 'Admin Panel' : 'Geometry Learning System' }}</h2>
       </div>
 
       <!-- Navigation Links -->
