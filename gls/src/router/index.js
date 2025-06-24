@@ -62,6 +62,15 @@ const routes = [
         }
       },
       { 
+        path: 'dashboard', 
+        name: 'AdminDashboardAlt', 
+        component: AdminDashboard,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true 
+        }
+      },
+      { 
         path: 'manage-users', 
         name: 'ManageUsers', 
         component: ManageUsers,
@@ -198,7 +207,7 @@ router.beforeEach(async (to, from, next) => {
     if (currentUser && (to.path === '/' || to.path === '/login')) {
       try {
         const userRole = await getUserRole(currentUser.uid)
-        const redirectTo = userRole === 'admin' ? '/admin' : '/dashboard'
+        const redirectTo = userRole === 'admin' ? '/admin/dashboard' : '/dashboard'
         next(redirectTo)
       } catch (error) {
         console.error('Error checking user role during redirect:', error)

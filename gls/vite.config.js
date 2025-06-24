@@ -12,6 +12,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      'vue': 'vue/dist/vue.esm-bundler.js', // ✅ Fix for runtime template compilation
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
