@@ -13,6 +13,9 @@ const AdminDashboard = () => import('@/views/admin/AdminDashboard.vue')
 const ManageUsers = () => import('@/views/admin/ManageUsers.vue')
 const AssignPractice = () => import('@/views/admin/AssignPractice.vue')
 const AdminNotifications = () => import('@/views/admin/Notifications.vue')
+const ContentManagement = () => import('@/views/admin/ContentManagement.vue')
+const AnalyticsDashboard = () => import('@/views/admin/Analytics.vue')
+const SystemSettings = () => import('@/views/admin/SystemSettings.vue')
 
 // Student Views
 const StudentDashboard = () => import('@/views/student/Dashboard.vue')
@@ -80,9 +83,27 @@ const routes = [
         }
       },
       { 
+        path: 'content-management', 
+        name: 'ContentManagement', 
+        component: ContentManagement,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true 
+        }
+      },
+      { 
         path: 'assign-practice', 
         name: 'AssignPractice', 
         component: AssignPractice,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true 
+        }
+      },
+      { 
+        path: 'analytics', 
+        name: 'Analytics', 
+        component: AnalyticsDashboard,
         meta: { 
           requiresAuth: true,
           requiresAdmin: true 
@@ -97,6 +118,15 @@ const routes = [
           requiresAdmin: true 
         }
       },
+      { 
+        path: 'settings', 
+        name: 'SystemSettings', 
+        component: SystemSettings,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true 
+        }
+      }
     ]
   },
 
