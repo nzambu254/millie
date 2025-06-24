@@ -1,50 +1,62 @@
 <template>
   <div class="app-container">
-    <!-- Header with user info and logout -->
-    <header v-if="showHeader" class="app-header" :class="{ 'admin-header': isAdmin }">
-      <div class="header-content">
-        <!-- Admin Header -->
-        <div v-if="isAdmin" class="admin-controls">
-          <span class="admin-badge">ADMIN</span>
-          <button @click="logout" class="logout-btn" title="Logout">
-            <svg class="logout-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-            </svg>
-            <span class="logout-text">Logout</span>
-          </button>
-        </div>
+    <!-- Sidebar - only show when not on landing/login pages -->
+    <Sidebar 
+      v-if="showSidebar"
+      :isAdmin="isAdmin" 
+      :currentUserEmail="currentUserEmail" 
+      :currentUserRole="currentUserRole" 
+      :unreadNotifications="unreadNotifications"
+    />
 
-        <!-- Regular User Header -->
-        <div v-else class="user-profile-section">
-          <div class="user-profile">
-            <svg class="user-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34 3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-            </svg>
-            <div class="user-info">
-              <span class="user-email">{{ currentUserEmail }}</span>
-              <span v-if="currentUserRole" class="user-role">{{ currentUserRole }}</span>
-            </div>
+    <!-- Main content area -->
+    <div class="main-content-wrapper" :class="{ 'no-sidebar': !showSidebar }">
+      <!-- Header with user info and logout -->
+      <header v-if="showHeader" class="app-header" :class="{ 'admin-header': isAdmin }">
+        <div class="header-content">
+          <!-- Admin Header -->
+          <div v-if="isAdmin" class="admin-controls">
+            <span class="admin-badge">ADMIN</span>
+            <button @click="logout" class="logout-btn" title="Logout">
+              <svg class="logout-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+              </svg>
+              <span class="logout-text">Logout</span>
+            </button>
           </div>
-          <button @click="logout" class="logout-btn" title="Logout">
-            <svg class="logout-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
-            </svg>
-            <span class="logout-text">Logout</span>
-          </button>
-        </div>
-      </div>
-    </header>
 
-    <!-- Main content container -->
-    <main class="main-content">
-      <div class="system-container">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
-      </div>
-    </main>
+          <!-- Regular User Header -->
+          <div v-else class="user-profile-section">
+            <div class="user-profile">
+              <svg class="user-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34 3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+              </svg>
+              <div class="user-info">
+                <span class="user-email">{{ currentUserEmail }}</span>
+                <span v-if="currentUserRole" class="user-role">{{ currentUserRole }}</span>
+              </div>
+            </div>
+            <button @click="logout" class="logout-btn" title="Logout">
+              <svg class="logout-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+              </svg>
+              <span class="logout-text">Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main content -->
+      <main class="main-content">
+        <div class="system-container" :class="{ 'full-width': !showSidebar }">
+          <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" />
+            </transition>
+          </router-view>
+        </div>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -55,53 +67,68 @@ import { auth } from '@/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
+import Sidebar from '@/components/Sidebar.vue'
 
 const router = useRouter()
 const route = useRoute()
+
 const currentUserEmail = ref('')
 const currentUserRole = ref('')
 const isAdmin = ref(false)
 const isRegistering = ref(false)
+const unreadNotifications = ref(0)
 
-// List of routes where header should be hidden
+// Routes without sidebar and header
+const noSidebarRoutes = ['/', '/login']
 const noHeaderRoutes = ['/', '/login']
 
-// Compute whether to show header
+// Sidebar visibility control
+const showSidebar = computed(() => {
+  return !!currentUserEmail.value && !noSidebarRoutes.includes(route.path)
+})
+
+// Header visibility control
 const showHeader = computed(() => {
   return !!currentUserEmail.value && !noHeaderRoutes.includes(route.path)
 })
 
-// Check if user is admin
 async function checkUserRole(uid) {
   try {
     const userDoc = await getDoc(doc(db, 'users', uid))
-    if (userDoc.exists()) {
-      return userDoc.data().role || 'user'
-    }
-    return 'user'
+    return userDoc.exists() ? userDoc.data().role || 'user' : 'user'
   } catch (error) {
     console.error('Role check failed:', error)
     return 'user'
   }
 }
 
-// Check auth state
+function resetUserState() {
+  currentUserEmail.value = ''
+  currentUserRole.value = ''
+  isAdmin.value = false
+}
+
+const logout = async () => {
+  try {
+    await signOut(auth)
+    resetUserState()
+    router.push('/login')
+  } catch (error) {
+    console.error('Logout failed:', error)
+  }
+}
+
 const checkAuthState = () => {
   onAuthStateChanged(auth, async (user) => {
-    if (isRegistering.value) {
-      console.log('Ignoring auth state change during registration')
-      return
-    }
+    if (isRegistering.value) return
 
     if (user) {
       currentUserEmail.value = user.email || ''
       const role = await checkUserRole(user.uid)
       currentUserRole.value = role
       isAdmin.value = role === 'admin'
-      
-      // Force token refresh to ensure latest claims
-      await user.getIdToken(true)
-      
+
+      await user.getIdToken(true) // Refresh token
       if (['/', '/login'].includes(route.path)) {
         router.push(isAdmin.value ? '/admin' : '/dashboard')
       }
@@ -114,65 +141,46 @@ const checkAuthState = () => {
   })
 }
 
-// Reset all user states
-function resetUserState() {
-  currentUserEmail.value = ''
-  currentUserRole.value = ''
-  isAdmin.value = false
-}
-
-// Logout function
-const logout = async () => {
-  try {
-    await signOut(auth)
-    resetUserState()
-    router.push('/login')
-  } catch (error) {
-    console.error('Logout failed:', error)
-  }
-}
-
-// Registration flag handler
+// Expose for registration flow
 const setRegistrationFlag = (value) => {
   isRegistering.value = value
-  if (!value) {
-    // Refresh auth state when registration completes
-    checkAuthState()
-  }
+  if (!value) checkAuthState()
 }
-
-// Make function available globally
 window.setRegistrationFlag = setRegistrationFlag
 
-// Initialize auth state
 onMounted(() => {
   checkAuthState()
 })
 </script>
 
 <style>
-/* Base styles */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f8f9fa;
-  color: #333;
+/* Layout and container styles */
+.app-container {
+  display: flex;
+  min-height: 100vh;
 }
 
-.app-container {
-  min-height: 100vh;
+.main-content-wrapper {
+  flex: 1;
+  margin-left: 250px;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
 }
 
-/* Header styles */
+.main-content-wrapper.no-sidebar {
+  margin-left: 0;
+}
+
+/* Header */
 .app-header {
   padding: 0.5rem 2rem;
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 90;
 }
 
 .admin-header {
@@ -184,10 +192,11 @@ body {
   justify-content: flex-end;
   align-items: center;
   max-width: 1200px;
-  width: 100%;
   margin: 0 auto;
+  width: 100%;
 }
 
+/* User profile */
 .user-profile-section {
   display: flex;
   align-items: center;
@@ -221,12 +230,12 @@ body {
 
 .user-email {
   font-size: 0.9rem;
-  color: #2c3e50;
   font-weight: 500;
+  color: #2c3e50;
   max-width: 200px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .user-role {
@@ -239,10 +248,9 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: transparent;
+  background: transparent;
   border: none;
   color: #e74c3c;
-  font-weight: 500;
   cursor: pointer;
   padding: 0.5rem 1rem;
   border-radius: 6px;
@@ -273,12 +281,12 @@ body {
   background-color: #6a0dad;
   color: white;
   padding: 0.25rem 0.5rem;
-  border-radius: 4px;
   font-size: 0.75rem;
+  border-radius: 4px;
   font-weight: bold;
 }
 
-/* Main content styles */
+/* Content */
 .main-content {
   flex: 1;
   padding: 1rem;
@@ -289,13 +297,17 @@ body {
   width: 100%;
   margin: 0 auto;
   padding: 1rem;
-  box-sizing: border-box;
-  background-color: white;
+  background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Transition effects */
+.system-container.full-width {
+  max-width: none;
+  margin: 0;
+}
+
+/* Transitions */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -306,42 +318,47 @@ body {
   opacity: 0;
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 768px) {
+  .main-content-wrapper {
+    margin-left: 70px;
+  }
+
+  .main-content-wrapper.no-sidebar {
+    margin-left: 0;
+  }
+
   .app-header {
     padding: 0.5rem 1rem;
   }
-  
+
   .main-content {
     padding: 0.5rem;
   }
-  
-  .system-container {
-    padding: 0.75rem;
-  }
-  
-  .user-profile-section, .admin-controls {
+
+  .user-profile-section,
+  .admin-controls {
     gap: 0.75rem;
   }
-  
+
   .user-profile {
     padding: 0.4rem 0.8rem;
     gap: 0.5rem;
   }
-  
+
   .user-email {
     font-size: 0.8rem;
     max-width: 150px;
   }
-  
+
   .logout-btn {
     padding: 0.4rem 0.8rem;
   }
-  
+
   .logout-text {
     display: none;
   }
-  
+
   .user-icon,
   .logout-icon {
     width: 18px;
@@ -350,18 +367,23 @@ body {
 }
 
 @media (max-width: 480px) {
+  .main-content-wrapper {
+    margin-left: 0;
+  }
+
   .user-email {
     max-width: 120px;
   }
-  
-  .user-profile-section, .admin-controls {
+
+  .user-profile-section,
+  .admin-controls {
     gap: 0.5rem;
   }
-  
+
   .user-profile {
     padding: 0.3rem 0.6rem;
   }
-  
+
   .logout-btn {
     padding: 0.3rem;
     border-radius: 50%;
@@ -369,13 +391,13 @@ body {
     height: 32px;
     justify-content: center;
   }
-  
+
   .user-icon,
   .logout-icon {
     width: 16px;
     height: 16px;
   }
-  
+
   .admin-badge {
     padding: 0.2rem 0.4rem;
     font-size: 0.65rem;
