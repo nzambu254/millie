@@ -152,8 +152,8 @@ const router = useRouter()
 .sidebar {
   width: 250px;
   height: 100vh;
-  background-color: #2c3e50;
-  color: white;
+  background-color: #dbdee0;
+  color: rgb(0, 0, 0);
   position: fixed;
   top: 0;
   left: 0;
@@ -163,7 +163,7 @@ const router = useRouter()
 }
 
 .admin-sidebar {
-  background-color: #4a148c;
+  background-color: #dbdee0;
 }
 
 .sidebar-inner {
@@ -203,7 +203,7 @@ const router = useRouter()
   display: flex;
   align-items: center;
   padding: 0.75rem 1.5rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: blue;
   text-decoration: none;
   transition: all 0.3s ease;
   position: relative;
@@ -211,12 +211,12 @@ const router = useRouter()
 
 .nav-link:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  color: white;
+  color: rgb(72, 201, 206);
 }
 
 .nav-link.active {
   background-color: rgba(255, 255, 255, 0.2);
-  color: white;
+  color: rgb(10, 10, 10);
   font-weight: 500;
 }
 
