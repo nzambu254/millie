@@ -65,6 +65,7 @@
                   <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                 </svg>
                 <span class="nav-text">Send Notification</span>
+                <span v-if="unreadNotifications > 0" class="notification-dot"></span>
               </router-link>
             </li>
           </template>
@@ -109,7 +110,7 @@
                   <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
                 </svg>
                 <span class="nav-text">Notifications</span>
-                <span v-if="unreadNotifications > 0" class="notification-badge">{{ unreadNotifications }}</span>
+                <span v-if="unreadNotifications > 0" class="notification-dot"></span>
               </router-link>
             </li>
             <li>
@@ -223,20 +224,16 @@ const router = useRouter()
   flex: 1;
 }
 
-.notification-badge {
+.notification-dot {
   background-color: #e74c3c;
-  color: white;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  font-weight: bold;
+  width: 16px;
+  height: 16px;
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 10px;
+  right: 12px;
+  box-shadow: 0 0 5px rgba(231, 76, 60, 0.7);
+  z-index: 100;
 }
 
 /* Responsive adjustments */
@@ -260,9 +257,9 @@ const router = useRouter()
     margin-right: 0;
   }
 
-  .notification-badge {
-    top: 5px;
-    right: 5px;
+  .notification-dot {
+    top: 8px;
+    right: 8px;
   }
 }
 
