@@ -24,6 +24,7 @@ const SupportResources = () => import('@/views/student/SupportResources.vue')
 const AssessmentModule = () => import('@/views/student/AssessmentModule.vue')
 const PracticeExercises = () => import('@/views/student/PracticeExercises.vue')
 const SendNotification = () => import('@/views/student/SendNotification.vue')
+const ViewDiagrams = () => import('@/views/student/ViewDiagrams.vue')
 
 const routes = [
   {
@@ -152,6 +153,13 @@ const routes = [
           requiresAuth: true 
         }
       },
+        {
+    path: '/application/diagrams',
+    component: ViewDiagrams,
+    meta: { 
+          requiresAuth: true 
+        }
+  },
       { 
         path: 'resources', 
         name: 'SupportResources', 

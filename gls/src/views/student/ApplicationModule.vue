@@ -3,26 +3,16 @@
     <h1>Application Module</h1>
     <div class="interactive-tools">
       <div class="tool-card">
-        <h3>Geometry Calculator</h3>
-        <p>Calculate area, perimeter and other properties of shapes</p>
-        <router-link to="/application/calculator" class="tool-btn">Open Calculator</router-link>
-      </div>
-      <div class="tool-card">
         <h3>Interactive Diagrams</h3>
         <p>Visualize geometric concepts with interactive diagrams</p>
         <router-link to="/application/diagrams" class="tool-btn">View Diagrams</router-link>
-      </div>
-      <div class="tool-card">
-        <h3>Problem Solver</h3>
-        <p>Step-by-step solutions to geometry problems</p>
-        <router-link to="/application/solver" class="tool-btn">Try Solver</router-link>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// Component logic can be added here
+// No logic needed here
 </script>
 
 <style scoped>
