@@ -186,6 +186,14 @@ const routes = [
           requiresAuth: true 
         }
       },
+      {
+  path: '/practice/1',
+  name: 'RectangleContent',
+  component: () => import('@/components/RectangleContent.vue'),
+          meta: { 
+          requiresAuth: true 
+        }
+},
       { 
         path: 'send-notification', 
         name: 'SendNotification', 

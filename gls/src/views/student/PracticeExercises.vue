@@ -16,27 +16,9 @@
 const categories = [
   {
     id: 1,
-    name: "Basic Geometry",
-    description: "Practice fundamental geometry concepts",
-    exerciseCount: 24
-  },
-  {
-    id: 2,
-    name: "Triangles",
-    description: "Exercises on triangle properties and theorems",
-    exerciseCount: 18
-  },
-  {
-    id: 3,
-    name: "Circles",
-    description: "Problems involving circles and their properties",
-    exerciseCount: 15
-  },
-  {
-    id: 4,
-    name: "Polygons",
-    description: "Practice with various polygon types",
-    exerciseCount: 12
+    name: "Basic Geometry - Rectangles",
+    description: "Master the fundamentals of rectangles including properties, formulas, and problem-solving techniques",
+    exerciseCount: 11
   }
 ]
 </script>
@@ -60,6 +42,12 @@ const categories = [
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.category-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .category-card h3 {
