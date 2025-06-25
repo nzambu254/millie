@@ -61,36 +61,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { auth } from '@/firebase'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/firebase'
+import { useAuthStore } from '@/stores/authStore'
 import Sidebar from '@/components/Sidebar.vue'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
-const currentUserEmail = ref('')
 const currentUserRole = ref('')
-const isAdmin = ref(false)
 const isRegistering = ref(false)
 const unreadNotifications = ref(0)
 
-// Routes without sidebar and header
+const isAdmin = computed(() => currentUserRole.value === 'admin')
+const currentUserEmail = computed(() => authStore.user?.email || '')
+
 const noSidebarRoutes = ['/', '/login']
 const noHeaderRoutes = ['/', '/login']
 
-// Sidebar visibility control
-const showSidebar = computed(() => {
-  return !!currentUserEmail.value && !noSidebarRoutes.includes(route.path)
-})
-
-// Header visibility control
-const showHeader = computed(() => {
-  return !!currentUserEmail.value && !noHeaderRoutes.includes(route.path)
-})
+const showSidebar = computed(() => !!authStore.user && !noSidebarRoutes.includes(route.path))
+const showHeader = computed(() => !!authStore.user && !noHeaderRoutes.includes(route.path))
 
 async function checkUserRole(uid) {
   try {
@@ -102,56 +95,51 @@ async function checkUserRole(uid) {
   }
 }
 
-function resetUserState() {
-  currentUserEmail.value = ''
-  currentUserRole.value = ''
-  isAdmin.value = false
-}
-
 const logout = async () => {
   try {
-    await signOut(auth)
-    resetUserState()
+    await authStore.logout()
+    currentUserRole.value = ''
     router.push('/login')
   } catch (error) {
     console.error('Logout failed:', error)
   }
 }
 
-const checkAuthState = () => {
-  onAuthStateChanged(auth, async (user) => {
+onMounted(() => {
+  authStore.fetchUser()
+})
+
+// Watch user changes
+watch(
+  () => authStore.user,
+  async (user) => {
     if (isRegistering.value) return
 
     if (user) {
-      currentUserEmail.value = user.email || ''
       const role = await checkUserRole(user.uid)
       currentUserRole.value = role
-      isAdmin.value = role === 'admin'
 
-      await user.getIdToken(true) // Refresh token
       if (['/', '/login'].includes(route.path)) {
-        router.push(isAdmin.value ? '/admin' : '/dashboard')
+        router.push(role === 'admin' ? '/admin' : '/dashboard')
       }
     } else {
-      resetUserState()
+      currentUserRole.value = ''
       if (!noHeaderRoutes.includes(route.path)) {
         router.push('/login')
       }
     }
-  })
-}
+  },
+  { immediate: true }
+)
 
-// Expose for registration flow
+// Optional: expose to registration flow
 const setRegistrationFlag = (value) => {
   isRegistering.value = value
-  if (!value) checkAuthState()
+  if (!value) authStore.fetchUser()
 }
 window.setRegistrationFlag = setRegistrationFlag
-
-onMounted(() => {
-  checkAuthState()
-})
 </script>
+
 
 <style>
 /* Layout and container styles */
