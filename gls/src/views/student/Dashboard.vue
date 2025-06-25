@@ -6,23 +6,38 @@
     </div>
     <div class="quick-stats">
       <div class="stat-card">
-        <h3>Active Courses</h3>
-        <p>3</p>
+        <h3>Beginner Modules</h3>
+        <p>{{ beginnerCount }}</p>
       </div>
       <div class="stat-card">
-        <h3>Pending Assignments</h3>
-        <p>2</p>
+        <h3>Intermediate Modules</h3>
+        <p>{{ intermediateCount }}</p>
       </div>
       <div class="stat-card">
-        <h3>Recent Scores</h3>
-        <p>85%</p>
+        <h3>Advanced Modules</h3>
+        <p>{{ advancedCount }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// You can add reactive data or methods here if needed
+import { ref, onMounted } from 'vue'
+import { db } from '@/firebase'
+import { collection, getDocs } from 'firebase/firestore'
+
+const beginnerCount = ref(0)
+const intermediateCount = ref(0)
+const advancedCount = ref(0)
+
+onMounted(async () => {
+  const snapshot = await getDocs(collection(db, 'geometry_contents'))
+  const contents = snapshot.docs.map(doc => doc.data())
+
+  beginnerCount.value = contents.filter(c => c.difficulty === 'Beginner').length
+  intermediateCount.value = contents.filter(c => c.difficulty === 'Intermediate').length
+  advancedCount.value = contents.filter(c => c.difficulty === 'Advanced').length
+})
 </script>
 
 <style scoped>

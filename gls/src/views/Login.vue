@@ -10,6 +10,13 @@
       </div>
 
       <form @submit.prevent="isRegistering ? register() : login()">
+        <div class="input-group" v-if="isRegistering">
+          <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+          </svg>
+          <input type="text" v-model="fullName" placeholder="Full Name" required />
+        </div>
+
         <div class="input-group">
           <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
@@ -26,7 +33,7 @@
 
         <div class="input-group" v-if="isRegistering">
           <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
           </svg>
           <select v-model="role" class="role-select" required>
             <option value="" disabled selected>Select your role</option>
@@ -70,13 +77,15 @@ import { useRouter } from 'vue-router'
 import { 
   signInWithEmailAndPassword, 
   sendPasswordResetEmail,
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  updateProfile
 } from 'firebase/auth'
 import { auth, db } from '@/firebase'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 
 const email = ref('')
 const password = ref('')
+const fullName = ref('')
 const role = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -129,11 +138,19 @@ const register = async () => {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
     
+    // Update user profile with display name
+    await updateProfile(user, {
+      displayName: fullName.value
+    })
+    
     // Store additional user data in Firestore
     await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid,
       email: email.value,
+      displayName: fullName.value,
       role: role.value,
-      createdAt: new Date()
+      status: 'active',
+      createdAt: new Date().toISOString()
     })
 
     // Redirect based on role
@@ -242,7 +259,6 @@ const handleAuthError = (err) => {
   outline: none;
   box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
 }
-
 
 * {
   box-sizing: border-box;

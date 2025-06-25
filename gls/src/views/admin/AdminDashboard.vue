@@ -3,63 +3,70 @@
     <h1>Admin Dashboard</h1>
     <div class="admin-stats">
       <div class="stat-card">
-        <h3>Total Students</h3>
-        <p>124</p>
+        <h3>Total users</h3>
+        <p>{{ totalStudents }}</p>
       </div>
       <div class="stat-card">
-        <h3>Active Courses</h3>
-        <p>8</p>
+        <h3>Beginner Modules</h3>
+        <p>{{ beginnerCount }}</p>
       </div>
       <div class="stat-card">
-        <h3>Pending Notifications</h3>
-        <p>5</p>
+        <h3>Intermediate Modules</h3>
+        <p>{{ intermediateCount }}</p>
       </div>
       <div class="stat-card">
-        <h3>Recent Activity</h3>
-        <p>12</p>
-      </div>
-    </div>
-    <div class="recent-activity">
-      <h2>Recent Student Activity</h2>
-      <div class="activity-list">
-        <div class="activity-item" v-for="activity in activities" :key="activity.id">
-          <div class="activity-content">
-            <strong>{{ activity.student }}</strong> {{ activity.action }}
-          </div>
-          <div class="activity-time">{{ activity.time }}</div>
-        </div>
+        <h3>Advanced Modules</h3>
+        <p>{{ advancedCount }}</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-const activities = [
-  {
-    id: 1,
-    student: "John Doe",
-    action: "completed the Basic Geometry quiz",
-    time: "2 hours ago"
-  },
-  {
-    id: 2,
-    student: "Jane Smith",
-    action: "submitted a notification",
-    time: "3 hours ago"
-  },
-  {
-    id: 3,
-    student: "Mike Johnson",
-    action: "started the Triangles module",
-    time: "5 hours ago"
-  },
-  {
-    id: 4,
-    student: "Sarah Williams",
-    action: "completed the Circles practice exercises",
-    time: "1 day ago"
+import { ref, onMounted } from 'vue'
+import { db } from '@/firebase'
+import { collection, getDocs } from 'firebase/firestore'
+
+const totalStudents = ref(0)
+const beginnerCount = ref(0)
+const intermediateCount = ref(0)
+const advancedCount = ref(0)
+
+// Fetch total students count
+const fetchStudentsCount = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'users'))
+    totalStudents.value = querySnapshot.size
+  } catch (error) {
+    console.error('Error fetching students count:', error)
+    totalStudents.value = 0
   }
-]
+}
+
+// Fetch content module counts by difficulty
+const fetchModuleCounts = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'geometry_contents'))
+    const contents = querySnapshot.docs.map(doc => doc.data())
+    
+    beginnerCount.value = contents.filter(c => c.difficulty === 'Beginner').length
+    intermediateCount.value = contents.filter(c => c.difficulty === 'Intermediate').length
+    advancedCount.value = contents.filter(c => c.difficulty === 'Advanced').length
+  } catch (error) {
+    console.error('Error fetching module counts:', error)
+    beginnerCount.value = 0
+    intermediateCount.value = 0
+    advancedCount.value = 0
+  }
+}
+
+// Load data when component mounts
+onMounted(async () => {
+  await Promise.all([
+    fetchStudentsCount(),
+    fetchModuleCounts()
+  ])
+})
 </script>
 
 <style scoped>
@@ -93,44 +100,5 @@ const activities = [
   font-weight: bold;
   color: #2c3e50;
   margin: 10px 0 0;
-}
-
-.recent-activity {
-  margin-top: 30px;
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.recent-activity h2 {
-  margin-top: 0;
-  color: #2c3e50;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-}
-
-.activity-list {
-  margin-top: 15px;
-}
-
-.activity-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.activity-item:last-child {
-  border-bottom: none;
-}
-
-.activity-content {
-  color: #333;
-}
-
-.activity-time {
-  color: #888;
-  font-size: 0.9rem;
 }
 </style>
