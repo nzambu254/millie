@@ -46,8 +46,8 @@
             <textarea id="description" v-model="newContent.description" required></textarea>
           </div>
           <div class="form-group">
-            <label for="contentFile">Upload PDF/Document:</label>
-            <input type="file" id="contentFile" @change="handleFileUpload" accept=".pdf,.doc,.docx" required>
+            <label for="contentFile">Upload PDF/Document (Optional):</label>
+            <input type="file" id="contentFile" @change="handleFileUpload" accept=".pdf,.doc,.docx">
           </div>
           <div class="form-group">
             <label for="difficulty">Difficulty Level:</label>
@@ -120,19 +120,27 @@ const handleFileUpload = (event) => {
 const addContent = async () => {
   uploading.value = true
   try {
-    // Upload file to Firebase Storage first
-    const fileRef = storageRef(storage, `geometry_contents/${Date.now()}_${newContent.value.file.name}`)
-    await uploadBytes(fileRef, newContent.value.file)
-    const fileUrl = await getDownloadURL(fileRef)
+    let fileUrl = ''
+    
+    // Only upload file if one was selected
+    if (newContent.value.file) {
+      const fileRef = storageRef(storage, `geometry_contents/${Date.now()}_${newContent.value.file.name}`)
+      await uploadBytes(fileRef, newContent.value.file)
+      fileUrl = await getDownloadURL(fileRef)
+    }
 
     // Add content data to Firestore
     const contentData = {
       title: newContent.value.title,
       topic: newContent.value.topic,
       description: newContent.value.description,
-      fileUrl,
       difficulty: newContent.value.difficulty,
       createdAt: new Date()
+    }
+
+    // Only add fileUrl if it exists
+    if (fileUrl) {
+      contentData.fileUrl = fileUrl
     }
 
     await addDoc(collection(db, 'geometry_contents'), contentData)
