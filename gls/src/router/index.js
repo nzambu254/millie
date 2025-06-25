@@ -21,7 +21,6 @@ const StudentDashboard = () => import('@/views/student/Dashboard.vue')
 const ContentModule = () => import('@/views/student/ContentModule.vue')
 const ApplicationModule = () => import('@/views/student/ApplicationModule.vue')
 const SupportResources = () => import('@/views/student/SupportResources.vue')
-const AssessmentModule = () => import('@/views/student/AssessmentModule.vue')
 const PracticeExercises = () => import('@/views/student/PracticeExercises.vue')
 const SendNotification = () => import('@/views/student/SendNotification.vue')
 const ViewDiagrams = () => import('@/views/student/ViewDiagrams.vue')
@@ -164,14 +163,6 @@ const routes = [
         path: 'resources', 
         name: 'SupportResources', 
         component: SupportResources,
-        meta: { 
-          requiresAuth: true 
-        }
-      },
-      { 
-        path: 'assessments', 
-        name: 'AssessmentModule', 
-        component: AssessmentModule,
         meta: { 
           requiresAuth: true 
         }
