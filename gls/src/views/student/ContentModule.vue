@@ -2,6 +2,23 @@
   <div class="student-content-view">
     <h1>Geometry Learning Materials</h1>
     
+    <!-- Rectangle Notes Section -->
+    <div class="rectangle-notes-section">
+      <h2>Rectangle Notes</h2>
+      <div class="notes-card">
+        <h3>Understanding Rectangles</h3>
+        <p>Access comprehensive notes on rectangles including properties, formulas, and examples.</p>
+        <div class="notes-actions">
+          <a href="/assets/donwloadable.pdf" target="_blank" class="notes-btn view-btn">
+            View PDF Notes
+          </a>
+          <a href="/assets/donwloadable.pdf" download="Rectangle_Notes.pdf" class="notes-btn download-btn">
+            Download PDF
+          </a>
+        </div>
+      </div>
+    </div>
+    
     <div class="filter-controls">
       <div class="filter-group">
         <label for="topic-filter">Filter by Topic:</label>
@@ -91,6 +108,81 @@ const filterContents = () => {
   margin: 0 auto;
 }
 
+/* Rectangle Notes Section Styles */
+.rectangle-notes-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.rectangle-notes-section h2 {
+  margin: 0 0 15px 0;
+  font-size: 1.8em;
+  text-align: center;
+}
+
+.notes-card {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.notes-card h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.4em;
+}
+
+.notes-card p {
+  margin: 0 0 20px 0;
+  opacity: 0.9;
+  line-height: 1.6;
+}
+
+.notes-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.notes-btn {
+  padding: 12px 24px;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.view-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.view-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.download-btn {
+  background: #4CAF50;
+  color: white;
+  border: 2px solid #4CAF50;
+}
+
+.download-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
+  transform: translateY(-2px);
+}
+
 .filter-controls {
   display: flex;
   gap: 20px;
@@ -124,6 +216,12 @@ const filterContents = () => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.content-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .content-meta {
@@ -159,7 +257,7 @@ const filterContents = () => {
   background: #f44336;
 }
 
-.download-btn {
+.content-card .download-btn {
   display: inline-block;
   padding: 8px 16px;
   background-color: #4CAF50;
@@ -167,9 +265,29 @@ const filterContents = () => {
   text-decoration: none;
   border-radius: 4px;
   margin-top: 10px;
+  transition: background-color 0.3s ease;
 }
 
-.download-btn:hover {
+.content-card .download-btn:hover {
   background-color: #45a049;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .filter-controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .notes-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .notes-btn {
+    width: 100%;
+    max-width: 250px;
+    justify-content: center;
+  }
 }
 </style>
