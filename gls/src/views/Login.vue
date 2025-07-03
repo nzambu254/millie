@@ -1,12 +1,20 @@
 <template>
   <div class="login-container">
+    <div class="login-illustration">
+      <img src="/images/pic1.jpeg" alt="Geometry Learning Illustration" class="login-image">
+      <div class="image-overlay">
+        <h2>Master Geometry with Interactive Tools</h2>
+        <p>Visualize concepts, solve problems, and track your progress</p>
+      </div>
+    </div>
+    
     <div class="login-box">
       <div class="login-header">
         <svg class="login-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
         </svg>
-        <h2>{{ isRegistering ? 'Create an Account' : 'Login to Your Account' }}</h2>
-        <p>{{ isRegistering ? 'Please fill in your details' : 'Please enter your email and password' }}</p>
+        <h2>{{ isRegistering ? 'Create an Account' : 'Welcome Back' }}</h2>
+        <p>{{ isRegistering ? 'Join our geometry learning community' : 'Continue your geometry learning journey' }}</p>
       </div>
 
       <form @submit.prevent="isRegistering ? register() : login()">
@@ -43,14 +51,14 @@
         </div>
 
         <button type="submit" :disabled="loading" class="login-btn">
-          <span v-if="!loading">{{ isRegistering ? 'Register' : 'Login' }}</span>
+          <span v-if="!loading">{{ isRegistering ? 'Create Account' : 'Sign In' }}</span>
           <span v-else class="loading-spinner"></span>
         </button>
       </form>
 
       <div class="login-footer">
         <div class="toggle-auth" @click="isRegistering = !isRegistering">
-          {{ isRegistering ? 'Already have an account? Login' : "Don't have an account? Register" }}
+          {{ isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Register" }}
         </div>
 
         <button v-if="!isRegistering" class="forgot-password" @click="forgotPassword" :disabled="loading">
@@ -64,7 +72,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
             <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
           </svg>
-          Back to Landing
+          Back to Home
         </RouterLink>
       </div>
     </div>
@@ -229,64 +237,64 @@ const handleAuthError = (err) => {
 </script>
 
 <style scoped>
-.toggle-auth {
-  color: #4facfe;
-  cursor: pointer;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  text-decoration: underline;
-}
-
-.toggle-auth:hover {
-  color: #3a9bf7;
-}
-
-.role-select {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 45px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  box-sizing: border-box;
-  appearance: none;
-  background-color: white;
-  color: #333;
-}
-
-.role-select:focus {
-  border-color: #4facfe;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
-}
-
-* {
-  box-sizing: border-box;
-}
-
 .login-container {
+  display: flex;
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.login-illustration {
+  flex: 1;
+  position: relative;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  background: #f8f9fa;
+  overflow: hidden;
+}
+
+.login-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.9;
+}
+
+.image-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   padding: 2rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  color: white;
+  text-align: center;
+}
+
+.image-overlay h2 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.image-overlay p {
+  font-size: 1.1rem;
+  opacity: 0.9;
 }
 
 .login-box {
+  width: 450px;
   background-color: white;
-  color: #333;
-  padding: 2.5rem;
-  border-radius: 16px;
-  max-width: 420px;
-  width: 100%;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-  text-align: center;
-  box-sizing: border-box;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.05);
 }
 
 .login-header {
   margin-bottom: 2rem;
+  text-align: center;
 }
 
 .login-icon {
@@ -300,6 +308,7 @@ const handleAuthError = (err) => {
   margin-bottom: 0.5rem;
   color: #2c3e50;
   font-size: 1.8rem;
+  font-weight: 700;
 }
 
 .login-box p {
@@ -325,7 +334,7 @@ const handleAuthError = (err) => {
   z-index: 1;
 }
 
-.login-box input {
+.login-box input, .role-select {
   width: 100%;
   padding: 0.75rem 1rem 0.75rem 45px;
   border: 1px solid #e0e0e0;
@@ -333,18 +342,20 @@ const handleAuthError = (err) => {
   font-size: 1rem;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  background-color: #f8fafc;
 }
 
-.login-box input:focus {
+.login-box input:focus, .role-select:focus {
   border-color: #4facfe;
   outline: none;
   box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.2);
+  background-color: white;
 }
 
 .login-btn {
   width: 100%;
   padding: 0.75rem;
-  background-color: #4facfe;
+  background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
   color: white;
   font-weight: 600;
   border: none;
@@ -352,7 +363,7 @@ const handleAuthError = (err) => {
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.3s ease;
-  margin-top: 0.5rem;
+  margin-top: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -361,13 +372,12 @@ const handleAuthError = (err) => {
 }
 
 .login-btn:hover:not(:disabled) {
-  background-color: #3a9bf7;
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(74, 172, 254, 0.4);
 }
 
 .login-btn:disabled {
-  background-color: #b0d4ff;
+  background: #b0d4ff;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -389,6 +399,21 @@ const handleAuthError = (err) => {
 
 .login-footer {
   margin-top: 1.5rem;
+  text-align: center;
+}
+
+.toggle-auth {
+  color: #4facfe;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.toggle-auth:hover {
+  color: #3a9bf7;
+  text-decoration: underline;
 }
 
 .forgot-password {
@@ -398,12 +423,14 @@ const handleAuthError = (err) => {
   cursor: pointer;
   font-size: 0.9rem;
   padding: 0.5rem;
-  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.3s ease;
   margin-bottom: 1rem;
 }
 
 .forgot-password:hover:not(:disabled) {
   color: #3a9bf7;
+  text-decoration: underline;
 }
 
 .forgot-password:disabled {
@@ -414,8 +441,8 @@ const handleAuthError = (err) => {
 .message {
   font-size: 0.9rem;
   margin: 0.5rem 0;
-  padding: 0.5rem;
-  border-radius: 4px;
+  padding: 0.75rem;
+  border-radius: 8px;
   word-wrap: break-word;
 }
 
@@ -448,11 +475,21 @@ const handleAuthError = (err) => {
   fill: currentColor;
 }
 
-@media (max-width: 480px) {
-  .login-container {
-    padding: 1rem;
+@media (max-width: 1024px) {
+  .login-illustration {
+    display: none;
   }
   
+  .login-box {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 2rem;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 480px) {
   .login-box {
     padding: 1.5rem;
   }
@@ -461,7 +498,7 @@ const handleAuthError = (err) => {
     font-size: 1.5rem;
   }
   
-  .login-box input {
+  .login-box input, .role-select {
     padding: 0.75rem 1rem 0.75rem 40px;
   }
   
