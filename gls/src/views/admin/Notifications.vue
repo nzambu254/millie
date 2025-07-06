@@ -75,11 +75,11 @@
         <div class="report-charts">
           <div class="chart-container">
             <h3>Notifications Over Time</h3>
-            <canvas ref="timeChart"></canvas>
+            <canvas ref="timeChart" v-show="reportData"></canvas>
           </div>
           <div class="chart-container">
             <h3>Read vs Unread</h3>
-            <canvas ref="readStatusChart"></canvas>
+            <canvas ref="readStatusChart" v-show="reportData"></canvas>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { 
   collection, 
   addDoc, 
@@ -354,7 +354,8 @@ const generateReport = async () => {
       notifications: allNotifications
     }
 
-    // Render charts
+    // Wait for the DOM to update before rendering charts
+    await nextTick()
     renderCharts()
   } catch (error) {
     console.error('Error generating report:', error)
@@ -366,9 +367,17 @@ const renderCharts = () => {
   // Destroy existing charts if they exist
   if (timeChartInstance) {
     timeChartInstance.destroy()
+    timeChartInstance = null
   }
   if (readStatusChartInstance) {
     readStatusChartInstance.destroy()
+    readStatusChartInstance = null
+  }
+
+  // Check if canvas elements exist
+  if (!timeChart.value || !readStatusChart.value) {
+    console.error('Canvas elements not found')
+    return
   }
 
   // Group notifications by date
@@ -656,150 +665,150 @@ onUnmounted(() => {
 .notification-actions button {
   padding: 6px 12px;
   background: none;
-  border: 1px solid #4a6cf7;
-  color: #4a6cf7;
-  cursor: pointer;
-  font-weight: 500;
-  border-radius: 4px;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.notification-actions button:hover {
-  background: #4a6cf7;
-  color: white;
-}
-
-.notification-actions .delete-btn {
-  border-color: #dc3545;
-  color: #dc3545;
-}
-
-.notification-actions .delete-btn:hover {
-  background: #dc3545;
-  color: white;
-}
-
-.success-message {
-  margin-top: 15px;
-  padding: 12px;
-  background-color: #d4edda;
-  color: #155724;
-  border-radius: 4px;
-  border: 1px solid #c3e6cb;
-}
-
-.error-message {
-  margin-top: 15px;
-  padding: 12px;
-  background-color: #f8d7da;
-  color: #721c24;
-  border-radius: 4px;
-  border: 1px solid #f5c6cb;
-}
-
-.no-notifications, .no-report {
-  text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-/* Report Section Styles */
-.report-filters {
-  display: flex;
-  gap: 20px;
-  align-items: flex-end;
-  margin-bottom: 20px;
-}
-
-.report-filters .form-group {
-  margin-bottom: 0;
-  flex: 1;
-}
-
-.report-results {
-  background: white;
-  padding: 25px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.report-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-.report-card {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  border-left: 4px solid #4a6cf7;
-}
-
-.report-card h3 {
-  margin-top: 0;
-  color: #2c3e50;
-  font-size: 16px;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: bold;
-  margin: 10px 0;
-  color: #4a6cf7;
-}
-
-.stat-percentage {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-}
-
-.report-charts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-}
-
-.chart-container {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.chart-container h3 {
-  margin-top: 0;
-  text-align: center;
-  color: #2c3e50;
-}
-
-@media (max-width: 768px) {
-  .notification-item {
-    flex-direction: column;
-    gap: 15px;
-  }
-  
-  .notification-actions {
-    flex-direction: row;
-    align-self: stretch;
-  }
-  
-  .notification-meta {
-    flex-direction: column;
-    gap: 5px;
+    border: 1px solid #4a6cf7;
+    color: #4a6cf7;
+    cursor: pointer;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.2s;
+    white-space: nowrap;
   }
 
+  .notification-actions button:hover {
+    background: #4a6cf7;
+    color: white;
+  }
+
+  .notification-actions .delete-btn {
+    border-color: #dc3545;
+    color: #dc3545;
+  }
+
+  .notification-actions .delete-btn:hover {
+    background: #dc3545;
+    color: white;
+  }
+
+  .success-message {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #d4edda;
+    color: #155724;
+    border-radius: 4px;
+    border: 1px solid #c3e6cb;
+  }
+
+  .error-message {
+    margin-top: 15px;
+    padding: 12px;
+    background-color: #f8d7da;
+    color: #721c24;
+    border-radius: 4px;
+    border: 1px solid #f5c6cb;
+  }
+
+  .no-notifications, .no-report {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+
+  /* Report Section Styles */
   .report-filters {
-    flex-direction: column;
-    align-items: stretch;
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+  }
+
+  .report-filters .form-group {
+    margin-bottom: 0;
+    flex: 1;
+  }
+
+  .report-results {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .report-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+
+  .report-card {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    border-left: 4px solid #4a6cf7;
+  }
+
+  .report-card h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    font-size: 16px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin: 10px 0;
+    color: #4a6cf7;
+  }
+
+  .stat-percentage {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
   }
 
   .report-charts {
-    grid-template-columns: 1fr;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
   }
-}
+
+  .chart-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .chart-container h3 {
+    margin-top: 0;
+    text-align: center;
+    color: #2c3e50;
+  }
+
+  @media (max-width: 768px) {
+    .notification-item {
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .notification-actions {
+      flex-direction: row;
+      align-self: stretch;
+    }
+    
+    .notification-meta {
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .report-filters {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .report-charts {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>

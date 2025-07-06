@@ -25,6 +25,66 @@
       </div>
     </div>
 
+    <!-- Notifications Report Section -->
+    <div class="notifications-report-section">
+      <h2>My Notifications Report</h2>
+      <div v-if="!authStore.user" class="auth-warning">
+        <p>You need to be logged in to view reports.</p>
+      </div>
+      <div v-else>
+        <div class="report-filters">
+          <div class="form-group">
+            <label for="timeRange">Time Range</label>
+            <select id="timeRange" v-model="reportFilters.timeRange">
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="90days">Last 90 Days</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+          <button class="generate-btn" @click="generateReport">Generate Report</button>
+        </div>
+        
+        <div v-if="reportData" class="report-results">
+          <div class="report-cards">
+            <div class="report-card">
+              <h3>Total Notifications</h3>
+              <p class="stat-value">{{ reportData.totalNotifications }}</p>
+            </div>
+            <div class="report-card">
+              <h3>Unread Notifications</h3>
+              <p class="stat-value">{{ reportData.unreadCount }}</p>
+              <p class="stat-percentage">{{ reportData.unreadPercentage }}%</p>
+            </div>
+            <div class="report-card">
+              <h3>Messages Sent</h3>
+              <p class="stat-value">{{ reportData.sentCount }}</p>
+              <p class="stat-percentage">{{ reportData.sentPercentage }}%</p>
+            </div>
+            <div class="report-card">
+              <h3>Messages Received</h3>
+              <p class="stat-value">{{ reportData.receivedCount }}</p>
+              <p class="stat-percentage">{{ reportData.receivedPercentage }}%</p>
+            </div>
+          </div>
+          
+          <div class="report-charts">
+            <div class="chart-container">
+              <h3>Notifications Over Time</h3>
+              <canvas ref="timeChart" v-show="reportData"></canvas>
+            </div>
+            <div class="chart-container">
+              <h3>Read vs Unread</h3>
+              <canvas ref="readStatusChart" v-show="reportData"></canvas>
+            </div>
+          </div>
+        </div>
+        <div v-else class="no-report">
+          <p>Generate a report to view your notification statistics</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Received Notifications Section -->
     <div class="received-notifications-section">
       <h2>Notifications from Admin</h2>
@@ -72,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { 
   collection, 
   addDoc, 
@@ -84,10 +144,13 @@ import {
   deleteDoc, 
   doc, 
   serverTimestamp,
-  or
+  or,
+  getDocs,
+  Timestamp
 } from 'firebase/firestore'
 import { db } from '@/firebase' // Adjust import path as needed
 import { useAuthStore } from '@/stores/authStore' // Adjust import path as needed
+import Chart from 'chart.js/auto'
 
 const authStore = useAuthStore()
 
@@ -102,13 +165,22 @@ const notifications = ref([])
 const sending = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const reportData = ref(null)
+const timeChart = ref(null)
+const readStatusChart = ref(null)
 
 const newMessage = ref({
   subject: '',
   message: ''
 })
 
+const reportFilters = ref({
+  timeRange: '7days'
+})
+
 let unsubscribe = null
+let timeChartInstance = null
+let readStatusChartInstance = null
 
 const filteredNotifications = computed(() => {
   if (activeFilter.value === 'all') return notifications.value
@@ -254,6 +326,211 @@ const formatTime = (timestamp) => {
   }
 }
 
+const generateReport = async () => {
+  if (!authStore.user) {
+    errorMessage.value = 'You must be logged in to generate reports'
+    return
+  }
+
+  try {
+    // Calculate date range based on filter
+    let startDate = new Date()
+    switch (reportFilters.value.timeRange) {
+      case '7days':
+        startDate.setDate(startDate.getDate() - 7)
+        break
+      case '30days':
+        startDate.setDate(startDate.getDate() - 30)
+        break
+      case '90days':
+        startDate.setDate(startDate.getDate() - 90)
+        break
+      case 'all':
+        startDate = null
+        break
+    }
+
+    // Query for all notifications related to this user
+    let receivedQuery = query(
+      collection(db, 'notifications'),
+      where('recipientRole', '==', 'student')
+    )
+
+    let sentQuery = query(
+      collection(db, 'notifications'),
+      where('senderId', '==', authStore.user.uid)
+    )
+
+    if (startDate) {
+      receivedQuery = query(
+        receivedQuery,
+        where('createdAt', '>=', Timestamp.fromDate(startDate))
+      )
+      sentQuery = query(
+        sentQuery,
+        where('createdAt', '>=', Timestamp.fromDate(startDate))
+      )
+    }
+
+    const [receivedSnapshot, sentSnapshot] = await Promise.all([
+      getDocs(receivedQuery),
+      getDocs(sentQuery)
+    ])
+
+    const receivedNotifications = receivedSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })).filter(notification => 
+      notification.recipientId === 'all' || 
+      notification.recipientId === authStore.user.uid ||
+      notification.recipientId === authStore.user.email
+    )
+
+    const sentNotifications = sentSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    const allNotifications = [...receivedNotifications, ...sentNotifications]
+
+    // Calculate statistics
+    const totalNotifications = allNotifications.length
+    const unreadCount = receivedNotifications.filter(n => !n.read).length
+    const sentCount = sentNotifications.length
+    const receivedCount = receivedNotifications.length
+
+    reportData.value = {
+      totalNotifications,
+      unreadCount,
+      unreadPercentage: receivedCount > 0 ? Math.round((unreadCount / receivedCount) * 100) : 0,
+      sentCount,
+      sentPercentage: totalNotifications > 0 ? Math.round((sentCount / totalNotifications) * 100) : 0,
+      receivedCount,
+      receivedPercentage: totalNotifications > 0 ? Math.round((receivedCount / totalNotifications) * 100) : 0,
+      notifications: allNotifications
+    }
+
+    // Wait for the DOM to update before rendering charts
+    await nextTick()
+    renderCharts()
+  } catch (error) {
+    console.error('Error generating report:', error)
+    errorMessage.value = 'Failed to generate report. Please try again.'
+  }
+}
+
+const renderCharts = () => {
+  // Destroy existing charts if they exist
+  if (timeChartInstance) {
+    timeChartInstance.destroy()
+    timeChartInstance = null
+  }
+  if (readStatusChartInstance) {
+    readStatusChartInstance.destroy()
+    readStatusChartInstance = null
+  }
+
+  // Check if canvas elements exist
+  if (!timeChart.value || !readStatusChart.value) {
+    console.error('Canvas elements not found')
+    return
+  }
+
+  // Group notifications by date
+  const dateGroups = {}
+  reportData.value.notifications.forEach(notification => {
+    const date = notification.createdAt?.toDate()
+    if (!date) return
+    
+    const dateStr = date.toISOString().split('T')[0]
+    if (!dateGroups[dateStr]) {
+      dateGroups[dateStr] = 0
+    }
+    dateGroups[dateStr]++
+  })
+
+  // Prepare data for time chart
+  const dates = Object.keys(dateGroups).sort()
+  const counts = dates.map(date => dateGroups[date])
+
+  // Time Chart
+  const timeCtx = timeChart.value.getContext('2d')
+  timeChartInstance = new Chart(timeCtx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: 'Notifications',
+        data: counts,
+        backgroundColor: 'rgba(74, 108, 247, 0.2)',
+        borderColor: 'rgba(74, 108, 247, 1)',
+        borderWidth: 2,
+        tension: 0.1,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  })
+
+  // Read Status Chart (only for received notifications)
+  const readStatusCtx = readStatusChart.value.getContext('2d')
+  readStatusChartInstance = new Chart(readStatusCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Read', 'Unread'],
+      datasets: [{
+        data: [
+          reportData.value.receivedCount - reportData.value.unreadCount,
+          reportData.value.unreadCount
+        ],
+        backgroundColor: [
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 99, 132, 0.7)'
+        ],
+        borderColor: [
+          'rgba(54, 162, 235, 1)',
+          'rgba(255, 99, 132, 1)'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || ''
+              const value = context.raw || 0
+              const total = context.dataset.data.reduce((a, b) => a + b, 0)
+              const percentage = total > 0 ? Math.round((value / total) * 100) : 0
+              return `${label}: ${value} (${percentage}%)`
+            }
+          }
+        }
+      }
+    }
+  })
+}
+
 // Watch for auth state changes
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
@@ -279,17 +556,24 @@ onUnmounted(() => {
   if (unsubscribe) {
     unsubscribe()
   }
+  if (timeChartInstance) {
+    timeChartInstance.destroy()
+  }
+  if (readStatusChartInstance) {
+    readStatusChartInstance.destroy()
+  }
 })
 </script>
 
 <style scoped>
 .notifications {
   padding: 20px;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
-.send-notification-section {
+.send-notification-section,
+.notifications-report-section {
   margin-bottom: 40px;
   padding-bottom: 30px;
   border-bottom: 2px solid #eee;
@@ -331,7 +615,8 @@ onUnmounted(() => {
 }
 
 .form-group input, 
-.form-group textarea {
+.form-group textarea, 
+.form-group select {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -342,7 +627,8 @@ onUnmounted(() => {
 }
 
 .form-group input:focus, 
-.form-group textarea:focus {
+.form-group textarea:focus, 
+.form-group select:focus {
   outline: none;
   border-color: #4a6cf7;
 }
@@ -352,7 +638,7 @@ onUnmounted(() => {
   min-height: 100px;
 }
 
-.submit-btn {
+.submit-btn, .generate-btn {
   background-color: #4a6cf7;
   color: white;
   border: none;
@@ -364,11 +650,13 @@ onUnmounted(() => {
   transition: background-color 0.2s;
 }
 
-.submit-btn:hover:not(:disabled) {
+.submit-btn:hover:not(:disabled),
+.generate-btn:hover:not(:disabled) {
   background-color: #3a5bd9;
 }
 
-.submit-btn:disabled {
+.submit-btn:disabled,
+.generate-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -502,10 +790,83 @@ onUnmounted(() => {
   border: 1px solid #f5c6cb;
 }
 
-.no-notifications {
+.no-notifications, .no-report {
   text-align: center;
   padding: 40px;
   color: #666;
+}
+
+/* Report Section Styles */
+.report-filters {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.report-filters .form-group {
+  margin-bottom: 0;
+  flex: 1;
+}
+
+.report-results {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.report-card {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  border-left: 4px solid #4a6cf7;
+}
+
+.report-card h3 {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  margin: 10px 0;
+  color: #4a6cf7;
+}
+
+.stat-percentage {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.report-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.chart-container {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chart-container h3 {
+  margin-top: 0;
+  text-align: center;
+  color: #2c3e50;
 }
 
 @media (max-width: 768px) {
@@ -523,5 +884,14 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 5px;
   }
+
+  .report-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-charts {
+    grid-template-columns: 1fr;
+  }
 }
-</style>
+</style>async 

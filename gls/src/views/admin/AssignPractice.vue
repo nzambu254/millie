@@ -21,64 +21,154 @@
     </div>
 
     <!-- Assign Practice Tab -->
-    <div v-if="activeTab === 'assign'" class="assignment-form">
-      <div class="form-row">
+    <div v-if="activeTab === 'assign'" class="assignment-container">
+      <!-- Assignment Form -->
+      <div class="assignment-form">
+        <h2>New Assignment</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="practice-type">Practice Type</label>
+            <select id="practice-type" v-model="practiceType">
+              <option value="">Select practice type</option>
+              <option value="quiz">Quiz</option>
+              <option value="exercise">Exercise</option>
+              <option value="assignment">Assignment</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="due-date">Due Date</label>
+            <input type="date" id="due-date" v-model="dueDate">
+          </div>
+        </div>
         <div class="form-group">
-          <label for="practice-type">Practice Type</label>
-          <select id="practice-type" v-model="practiceType">
-            <option value="">Select practice type</option>
+          <label for="practice-topic">Topic</label>
+          <input type="text" id="practice-topic" v-model="topic" placeholder="Enter topic (e.g. Rectangles)">
+        </div>
+        <div class="form-group">
+          <label>Assign To</label>
+          <div class="assign-options">
+            <label><input type="radio" v-model="assignTo" value="all"> All Students</label>
+            <label><input type="radio" v-model="assignTo" value="selected"> Selected Students</label>
+            <label><input type="radio" v-model="assignTo" value="groups"> Groups/Classes</label>
+          </div>
+          <div v-if="assignTo === 'selected'" class="student-selection">
+            <div class="search-box">
+              <input 
+                type="text" 
+                v-model="searchQuery" 
+                placeholder="Search students..."
+                class="search-input"
+              >
+            </div>
+            <div class="student-list" v-if="!loadingStudents">
+              <div class="student-checkbox" v-for="student in filteredStudents" :key="student.uid">
+                <input type="checkbox" :id="'student-' + student.uid" :value="student.uid" v-model="selectedStudents">
+                <label :for="'student-' + student.uid">
+                  {{ student.name }}
+                  <span class="student-email">{{ student.displayName || student.email }}</span>
+                </label>
+              </div>
+            </div>
+            <div v-if="loadingStudents" class="loading-message">
+              Loading students...
+            </div>
+            <div v-if="!loadingStudents && filteredStudents.length === 0" class="no-students">
+              No students found
+            </div>
+          </div>
+        </div>
+        <button class="assign-btn" @click="assignPractice" :disabled="loading">
+          {{ loading ? 'Assigning...' : 'Assign Practice' }}
+        </button>
+        <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
+        <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
+      </div>
+
+      <!-- Assignment Report -->
+      <div class="assignment-report">
+        <h2>Recent Assignments</h2>
+        <div class="report-filters">
+          <select v-model="reportFilterType" class="filter-select">
+            <option value="">All Types</option>
             <option value="quiz">Quiz</option>
             <option value="exercise">Exercise</option>
             <option value="assignment">Assignment</option>
           </select>
+          <select v-model="reportFilterDate" class="filter-select">
+            <option value="">All Time</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+          </select>
+          <button @click="fetchAssignments" class="refresh-btn" :disabled="loadingAssignments">
+            {{ loadingAssignments ? 'Loading...' : 'Refresh' }}
+          </button>
         </div>
-        <div class="form-group">
-          <label for="due-date">Due Date</label>
-          <input type="date" id="due-date" v-model="dueDate">
+
+        <div v-if="loadingAssignments" class="loading-message">
+          Loading assignments...
         </div>
-      </div>
-      <div class="form-group">
-        <label for="practice-topic">Topic</label>
-        <input type="text" id="practice-topic" v-model="topic" placeholder="Enter topic (e.g. Rectangles)">
-      </div>
-      <div class="form-group">
-        <label>Assign To</label>
-        <div class="assign-options">
-          <label><input type="radio" v-model="assignTo" value="all"> All Students</label>
-          <label><input type="radio" v-model="assignTo" value="selected"> Selected Students</label>
-          <label><input type="radio" v-model="assignTo" value="groups"> Groups/Classes</label>
+
+        <div v-if="!loadingAssignments && filteredAssignments.length === 0" class="no-assignments">
+          No assignments found
         </div>
-        <div v-if="assignTo === 'selected'" class="student-selection">
-          <div class="search-box">
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              placeholder="Search students..."
-              class="search-input"
-            >
-          </div>
-          <div class="student-list" v-if="!loadingStudents">
-            <div class="student-checkbox" v-for="student in filteredStudents" :key="student.uid">
-              <input type="checkbox" :id="'student-' + student.uid" :value="student.uid" v-model="selectedStudents">
-              <label :for="'student-' + student.uid">
-                {{ student.name }}
-                <span class="student-email">{{ student.displayName || student.email }}</span>
-              </label>
+
+        <div v-if="!loadingAssignments && filteredAssignments.length > 0" class="assignments-list">
+          <div v-for="assignment in filteredAssignments" :key="assignment.id" class="assignment-card">
+            <div class="assignment-header">
+              <h3>{{ assignment.topic || 'No topic' }}</h3>
+              <span class="assignment-type">{{ assignment.practiceType }}</span>
+              <span class="assignment-date">{{ formatDate(assignment.timestamp) }}</span>
+            </div>
+            
+            <div class="assignment-details">
+              <div class="detail-item">
+                <span class="detail-label">Assigned To:</span>
+                <span class="detail-value">
+                  {{ assignment.assignTo === 'all' ? 'All Students' : 
+                     assignment.assignTo === 'selected' ? `${assignment.selectedStudents.length} Students` : 
+                     'Groups/Classes' }}
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Due Date:</span>
+                <span class="detail-value">{{ assignment.dueDate || 'Not set' }}</span>
+              </div>
+            </div>
+
+            <div class="assignment-stats">
+              <div class="stat-item">
+                <span class="stat-value">{{ getSubmissionCount(assignment.id, 'submitted') }}</span>
+                <span class="stat-label">Submitted</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">{{ getSubmissionCount(assignment.id, 'graded') }}</span>
+                <span class="stat-label">Graded</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value">{{ getSubmissionCount(assignment.id, 'pending') }}</span>
+                <span class="stat-label">Pending</span>
+              </div>
+            </div>
+
+            <div class="assignment-actions">
+              <button 
+                @click="viewAssignmentDetails(assignment)"
+                class="action-btn view-btn"
+              >
+                View Details
+              </button>
+              <button 
+                v-if="assignment.assignTo === 'selected'"
+                @click="viewAssignedStudents(assignment)"
+                class="action-btn students-btn"
+              >
+                View Students
+              </button>
             </div>
           </div>
-          <div v-if="loadingStudents" class="loading-message">
-            Loading students...
-          </div>
-          <div v-if="!loadingStudents && filteredStudents.length === 0" class="no-students">
-            No students found
-          </div>
         </div>
       </div>
-      <button class="assign-btn" @click="assignPractice" :disabled="loading">
-        {{ loading ? 'Assigning...' : 'Assign Practice' }}
-      </button>
-      <div v-if="successMessage" class="success-message">{{ successMessage }}</div>
-      <div v-if="errorMessage" class="error-message">{{ errorMessage }}</div>
     </div>
 
     <!-- Submissions Tab -->
@@ -189,6 +279,69 @@
         </div>
       </div>
     </div>
+
+    <!-- Assignment Details Modal -->
+    <div v-if="showAssignmentModal" class="modal-overlay" @click="closeAssignmentModal">
+      <div class="modal-content" @click.stop>
+        <h3>Assignment Details</h3>
+        <div v-if="selectedAssignment" class="assignment-modal-content">
+          <div class="modal-section">
+            <h4>Basic Information</h4>
+            <div class="detail-row">
+              <span class="detail-label">Topic:</span>
+              <span class="detail-value">{{ selectedAssignment.topic || 'No topic' }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Type:</span>
+              <span class="detail-value">{{ selectedAssignment.practiceType }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Assigned On:</span>
+              <span class="detail-value">{{ formatDate(selectedAssignment.timestamp) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Due Date:</span>
+              <span class="detail-value">{{ selectedAssignment.dueDate || 'Not set' }}</span>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h4>Assignment Statistics</h4>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">{{ getSubmissionCount(selectedAssignment.id, 'submitted') }}</div>
+                <div class="stat-label">Submitted</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">{{ getSubmissionCount(selectedAssignment.id, 'graded') }}</div>
+                <div class="stat-label">Graded</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">{{ getSubmissionCount(selectedAssignment.id, 'pending') }}</div>
+                <div class="stat-label">Pending</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">{{ getSubmissionCount(selectedAssignment.id, 'late') }}</div>
+                <div class="stat-label">Late</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section" v-if="selectedAssignment.assignTo === 'selected'">
+            <h4>Assigned Students</h4>
+            <div class="assigned-students-list">
+              <div v-for="studentId in selectedAssignment.selectedStudents" :key="studentId" class="student-item">
+                {{ getStudentName(studentId) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button @click="closeAssignmentModal" class="action-btn cancel-btn">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -220,6 +373,14 @@ const selectedSubmission = ref(null)
 const feedbackInput = ref('')
 const gradingInProgress = ref(false)
 
+// Assignment report variables
+const assignments = ref([])
+const loadingAssignments = ref(false)
+const reportFilterType = ref('')
+const reportFilterDate = ref('')
+const showAssignmentModal = ref(false)
+const selectedAssignment = ref(null)
+
 const students = ref([])
 
 // Computed property to filter students based on search query
@@ -247,6 +408,37 @@ const filteredSubmissions = computed(() => {
     filtered = filtered.filter(submission => 
       submission.practiceType === filterPracticeType.value
     )
+  }
+  
+  return filtered
+})
+
+// Computed property to filter assignments
+const filteredAssignments = computed(() => {
+  let filtered = assignments.value
+  
+  if (reportFilterType.value) {
+    filtered = filtered.filter(assignment => 
+      assignment.practiceType === reportFilterType.value
+    )
+  }
+  
+  if (reportFilterDate.value) {
+    const now = new Date()
+    filtered = filtered.filter(assignment => {
+      const assignmentDate = assignment.timestamp.toDate ? assignment.timestamp.toDate() : new Date(assignment.timestamp)
+      
+      if (reportFilterDate.value === 'today') {
+        return assignmentDate.toDateString() === now.toDateString()
+      } else if (reportFilterDate.value === 'week') {
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        return assignmentDate >= oneWeekAgo
+      } else if (reportFilterDate.value === 'month') {
+        const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+        return assignmentDate >= oneMonthAgo
+      }
+      return true
+    })
   }
   
   return filtered
@@ -314,6 +506,33 @@ const fetchSubmissions = async () => {
   }
 }
 
+// Function to fetch assignments from Firestore
+const fetchAssignments = async () => {
+  try {
+    loadingAssignments.value = true
+    errorMessage.value = ''
+    
+    const assignmentsRef = collection(db, 'assignments')
+    const q = query(assignmentsRef, orderBy('timestamp', 'desc'))
+    const querySnapshot = await getDocs(q)
+    
+    assignments.value = []
+    querySnapshot.forEach((doc) => {
+      const assignmentData = doc.data()
+      assignments.value.push({
+        id: doc.id,
+        ...assignmentData
+      })
+    })
+    
+  } catch (error) {
+    console.error('Error fetching assignments:', error)
+    errorMessage.value = 'Failed to load assignments. Please try again.'
+  } finally {
+    loadingAssignments.value = false
+  }
+}
+
 // Watch for changes in assignTo to fetch students when needed
 watch(assignTo, (newValue) => {
   if (newValue === 'selected' && students.value.length === 0) {
@@ -321,10 +540,12 @@ watch(assignTo, (newValue) => {
   }
 })
 
-// Watch for tab changes to fetch submissions when needed
+// Watch for tab changes to fetch data when needed
 watch(activeTab, (newValue) => {
   if (newValue === 'submissions') {
     fetchSubmissions()
+  } else if (newValue === 'assign') {
+    fetchAssignments()
   }
 })
 
@@ -367,6 +588,9 @@ const assignPractice = async () => {
     selectedStudents.value = []
     searchQuery.value = ''
     
+    // Refresh assignments list
+    await fetchAssignments()
+    
     setTimeout(() => {
       successMessage.value = ''
     }, 3000)
@@ -395,6 +619,13 @@ const formatDate = (date) => {
 
 const formatStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+const getSubmissionCount = (assignmentId, status) => {
+  return submissions.value.filter(sub => 
+    sub.assignmentId === assignmentId && 
+    (sub.status || 'pending') === status
+  ).length
 }
 
 const gradeSubmission = (submission) => {
@@ -475,9 +706,25 @@ const sendReminder = async (submission) => {
   }
 }
 
-// Load students on component mount
+const viewAssignmentDetails = (assignment) => {
+  selectedAssignment.value = assignment
+  showAssignmentModal.value = true
+}
+
+const viewAssignedStudents = (assignment) => {
+  selectedAssignment.value = assignment
+  showAssignmentModal.value = true
+}
+
+const closeAssignmentModal = () => {
+  showAssignmentModal.value = false
+  selectedAssignment.value = null
+}
+
+// Load initial data on component mount
 onMounted(async () => {
   await fetchStudents()
+  await fetchAssignments()
 })
 </script>
 
@@ -509,13 +756,28 @@ onMounted(async () => {
   border-bottom-color: #4a6cf7;
 }
 
-.assignment-form, .submissions-section {
-  max-width: 1200px;
+.assignment-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 1400px;
   margin: 20px auto 0;
+}
+
+.assignment-form, .assignment-report {
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.assignment-form h2, .assignment-report h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  font-size: 1.5rem;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
 }
 
 .form-row {
@@ -618,14 +880,14 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-.submissions-header {
+.report-filters, .submissions-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.submissions-filters {
+.report-filters, .submissions-filters {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -650,6 +912,101 @@ onMounted(async () => {
 
 .refresh-btn:hover:not(:disabled) {
   background-color: #5a6268;
+}
+
+.assignments-list {
+  display: grid;
+  gap: 15px;
+}
+
+.assignment-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.assignment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.assignment-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.1rem;
+}
+
+.assignment-type {
+  background-color: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.assignment-date {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.assignment-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.detail-value {
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.assignment-stats {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  padding: 10px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+}
+
+.stat-item {
+  text-align: center;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #4a6cf7;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.assignment-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .submissions-grid {
@@ -721,23 +1078,6 @@ onMounted(async () => {
   margin-bottom: 15px;
 }
 
-.detail-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.detail-label {
-  font-weight: 500;
-  color: #6c757d;
-  font-size: 12px;
-}
-
-.detail-value {
-  color: #2c3e50;
-  font-size: 14px;
-}
-
 .submission-text {
   margin-bottom: 15px;
 }
@@ -786,6 +1126,15 @@ onMounted(async () => {
 
 .view-btn:hover:not(:disabled) {
   background-color: #3a5bd9;
+}
+
+.students-btn {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.students-btn:hover:not(:disabled) {
+  background-color: #138496;
 }
 
 .reminder-btn {
@@ -843,50 +1192,135 @@ onMounted(async () => {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
+  max-width: 600px;
+  width: 90;
+  max-height: 90vh;
   overflow-y: auto;
 }
 
 .modal-content h3 {
   margin-top: 0;
   color: #2c3e50;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.grade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .modal-actions {
   display: flex;
-  gap: 10px;
   justify-content: flex-end;
+  gap: 10px;
   margin-top: 20px;
 }
 
-.loading-message {
+.assignment-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.modal-section {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.modal-section h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.detail-row {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.detail-label {
+  font-weight: 500;
+  color: #6c757d;
+  min-width: 120px;
+}
+
+.detail-value {
+  color: #2c3e50;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+}
+
+.stat-card {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
   text-align: center;
-  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4a6cf7;
+  margin-bottom: 5px;
+}
+
+.stat-card .stat-label {
+  font-size: 12px;
   color: #6c757d;
 }
 
-.no-students, .no-submissions {
+.assigned-students-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.student-item {
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.loading-message, .no-students, .no-assignments, .no-submissions {
   text-align: center;
   padding: 20px;
   color: #6c757d;
+  background-color: #f8f9fa;
+  border-radius: 6px;
 }
 
 .success-message {
-  margin-top: 15px;
-  padding: 10px;
+  color: #28a745;
   background-color: #d4edda;
-  color: #155724;
+  padding: 10px;
   border-radius: 4px;
+  margin-top: 15px;
+  text-align: center;
 }
 
 .error-message {
-  margin-top: 15px;
-  padding: 10px;
+  color: #dc3545;
   background-color: #f8d7da;
-  color: #721c24;
+  padding: 10px;
   border-radius: 4px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .assignment-container {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -894,27 +1328,45 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
   
+  .assignment-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .report-filters, .submissions-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-select {
+    width: 100%;
+  }
+  
+  .refresh-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-navigation {
+    flex-direction: column;
+  }
+  
   .assign-options {
     flex-direction: column;
     gap: 10px;
   }
   
-  .submissions-header {
+  .assignment-actions, .submission-actions, .modal-actions {
     flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
+    gap: 10px;
   }
   
-  .submissions-filters {
-    flex-wrap: wrap;
-  }
-  
-  .submission-details {
-    grid-template-columns: 1fr;
-  }
-  
-  .submission-actions {
-    flex-direction: column;
+  .action-btn {
+    width: 100%;
   }
 }
 </style>
