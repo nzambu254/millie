@@ -337,6 +337,9 @@
           </div>
 
           <div class="modal-actions">
+            <button @click="downloadAssignmentReport" class="action-btn download-btn">
+              Download Report (PDF)
+            </button>
             <button @click="closeAssignmentModal" class="action-btn cancel-btn">Close</button>
           </div>
         </div>
@@ -349,6 +352,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { collection, getDocs, addDoc, query, where, updateDoc, doc, orderBy } from 'firebase/firestore'
 import { db } from '@/firebase' 
+import html2pdf from 'html2pdf.js'
 
 // Form variables
 const practiceType = ref('')
@@ -612,9 +616,21 @@ const getStudentName = (studentId) => {
 const formatDate = (date) => {
   if (!date) return 'Not set'
   if (date.toDate) {
-    return date.toDate().toLocaleDateString()
+    return date.toDate().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   }
-  return new Date(date).toLocaleDateString()
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 const formatStatus = (status) => {
@@ -719,6 +735,100 @@ const viewAssignedStudents = (assignment) => {
 const closeAssignmentModal = () => {
   showAssignmentModal.value = false
   selectedAssignment.value = null
+}
+
+const downloadAssignmentReport = () => {
+  if (!selectedAssignment.value) return
+  
+  // Create HTML content dynamically
+  const htmlContent = `
+    <div class="pdf-report">
+      <h2 class="pdf-title">Assignment Report</h2>
+      <div class="pdf-section">
+        <h3>Basic Information</h3>
+        <table class="pdf-table">
+          <tbody>
+            <tr>
+              <td class="pdf-label">Topic:</td>
+              <td class="pdf-value">${selectedAssignment.value.topic || 'No topic'}</td>
+            </tr>
+            <tr>
+              <td class="pdf-label">Type:</td>
+              <td class="pdf-value">${selectedAssignment.value.practiceType}</td>
+            </tr>
+            <tr>
+              <td class="pdf-label">Assigned On:</td>
+              <td class="pdf-value">${formatDate(selectedAssignment.value.timestamp)}</td>
+            </tr>
+            <tr>
+              <td class="pdf-label">Due Date:</td>
+              <td class="pdf-value">${selectedAssignment.value.dueDate || 'Not set'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pdf-section">
+        <h3>Assignment Statistics</h3>
+        <div class="pdf-stats">
+          <div class="pdf-stat">
+            <div class="pdf-stat-value">${getSubmissionCount(selectedAssignment.value.id, 'submitted')}</div>
+            <div class="pdf-stat-label">Submitted</div>
+          </div>
+          <div class="pdf-stat">
+            <div class="pdf-stat-value">${getSubmissionCount(selectedAssignment.value.id, 'graded')}</div>
+            <div class="pdf-stat-label">Graded</div>
+          </div>
+          <div class="pdf-stat">
+            <div class="pdf-stat-value">${getSubmissionCount(selectedAssignment.value.id, 'pending')}</div>
+            <div class="pdf-stat-label">Pending</div>
+          </div>
+          <div class="pdf-stat">
+            <div class="pdf-stat-value">${getSubmissionCount(selectedAssignment.value.id, 'late')}</div>
+            <div class="pdf-stat-label">Late</div>
+          </div>
+        </div>
+      </div>
+
+      ${selectedAssignment.value.assignTo === 'selected' ? `
+      <div class="pdf-section">
+        <h3>Assigned Students</h3>
+        <div class="pdf-students">
+          ${selectedAssignment.value.selectedStudents.map((studentId, index) => `
+            <div class="pdf-student">${index + 1}. ${getStudentName(studentId)}</div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+
+      <div class="pdf-footer">
+        Report generated on ${formatDate(new Date())}
+      </div>
+    </div>
+  `
+  
+  // Create a temporary element
+  const element = document.createElement('div')
+  element.innerHTML = htmlContent
+  
+  // PDF options
+  const opt = {
+    margin: 10,
+    filename: `assignment-report-${selectedAssignment.value.id}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { 
+      scale: 2,
+      logging: true,
+      useCORS: true
+    },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }
+
+  // Generate the PDF
+  html2pdf().set(opt).from(element).save()
+  
+  // Clean up
+  element.remove()
 }
 
 // Load initial data on component mount
@@ -1026,12 +1136,18 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+}
+
+.submission-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
 .submission-info h3 {
   margin: 0;
   color: #2c3e50;
+  font-size: 1.1rem;
 }
 
 .submission-type {
@@ -1040,15 +1156,14 @@ onMounted(async () => {
   border-radius: 4px;
   font-size: 12px;
   color: #6c757d;
-  margin-left: 10px;
 }
 
 .submission-status {
-  padding: 4px 12px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
-  text-transform: uppercase;
+  text-transform: capitalize;
 }
 
 .submission-status.pending {
@@ -1057,13 +1172,13 @@ onMounted(async () => {
 }
 
 .submission-status.submitted {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: #cce5ff;
+  color: #004085;
 }
 
 .submission-status.graded {
-  background-color: #cce5ff;
-  color: #004085;
+  background-color: #d4edda;
+  color: #155724;
 }
 
 .submission-status.late {
@@ -1073,9 +1188,12 @@ onMounted(async () => {
 
 .submission-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 15px;
-  margin-bottom: 15px;
+  margin: 15px 0;
+  padding: 15px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
 }
 
 .submission-text {
@@ -1084,16 +1202,16 @@ onMounted(async () => {
 
 .submission-text h4 {
   margin: 0 0 10px 0;
-  color: #2c3e50;
   font-size: 14px;
+  color: #2c3e50;
 }
 
 .submission-text p {
   margin: 0;
-  padding: 10px;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  color: #2c3e50;
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .submission-actions {
@@ -1107,7 +1225,25 @@ onMounted(async () => {
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+}
+
+.action-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.view-btn {
+  background-color: #6c757d;
+  color: white;
+}
+
+.view-btn:hover {
+  background-color: #5a6268;
 }
 
 .grade-btn {
@@ -1115,64 +1251,44 @@ onMounted(async () => {
   color: white;
 }
 
-.grade-btn:hover:not(:disabled) {
+.grade-btn:hover {
   background-color: #218838;
 }
 
-.view-btn {
-  background-color: #4a6cf7;
-  color: white;
-}
-
-.view-btn:hover:not(:disabled) {
-  background-color: #3a5bd9;
-}
-
-.students-btn {
+.reminder-btn {
   background-color: #17a2b8;
   color: white;
 }
 
-.students-btn:hover:not(:disabled) {
+.reminder-btn:hover {
   background-color: #138496;
 }
 
-.reminder-btn {
+.students-btn {
   background-color: #ffc107;
   color: #212529;
 }
 
-.reminder-btn:hover:not(:disabled) {
+.students-btn:hover {
   background-color: #e0a800;
 }
 
 .cancel-btn {
-  background-color: #6c757d;
+  background-color: #dc3545;
   color: white;
 }
 
-.cancel-btn:hover:not(:disabled) {
-  background-color: #5a6268;
+.cancel-btn:hover {
+  background-color: #c82333;
 }
 
-.assign-btn {
-  background-color: #4a6cf7;
+.download-btn {
+  background-color: #6610f2;
   color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
 }
 
-.assign-btn:hover:not(:disabled) {
-  background-color: #3a5bd9;
-}
-
-.assign-btn:disabled {
-  background-color: #6c757d;
-  cursor: not-allowed;
+.download-btn:hover {
+  background-color: #560bd0;
 }
 
 .modal-overlay {
@@ -1189,13 +1305,14 @@ onMounted(async () => {
 }
 
 .modal-content {
-  background: white;
-  padding: 20px;
+  background-color: white;
   border-radius: 8px;
-  max-width: 600px;
-  width: 90;
+  padding: 25px;
+  width: 90%;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .modal-content h3 {
@@ -1205,35 +1322,14 @@ onMounted(async () => {
   border-bottom: 1px solid #eee;
 }
 
-.grade-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.assignment-modal-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .modal-section {
-  padding: 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
+  margin-bottom: 20px;
 }
 
 .modal-section h4 {
-  margin-top: 0;
-  margin-bottom: 15px;
+  margin: 0 0 15px 0;
   color: #2c3e50;
+  font-size: 1rem;
 }
 
 .detail-row {
@@ -1244,7 +1340,8 @@ onMounted(async () => {
 .detail-label {
   font-weight: 500;
   color: #6c757d;
-  min-width: 120px;
+  width: 120px;
+  flex-shrink: 0;
 }
 
 .detail-value {
@@ -1258,11 +1355,10 @@ onMounted(async () => {
 }
 
 .stat-card {
-  background: white;
-  padding: 15px;
+  background-color: #f8f9fa;
   border-radius: 6px;
+  padding: 15px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .stat-card .stat-value {
@@ -1285,38 +1381,53 @@ onMounted(async () => {
 
 .student-item {
   padding: 8px 12px;
-  background-color: white;
+  background-color: #f8f9fa;
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  font-size: 14px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.grade-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;
+  min-height: 100px;
+  margin-bottom: 15px;
 }
 
 .loading-message, .no-students, .no-assignments, .no-submissions {
   text-align: center;
   padding: 20px;
   color: #6c757d;
-  background-color: #f8f9fa;
-  border-radius: 6px;
 }
 
 .success-message {
   color: #28a745;
-  background-color: #d4edda;
-  padding: 10px;
-  border-radius: 4px;
   margin-top: 15px;
-  text-align: center;
+  padding: 10px;
+  background-color: #d4edda;
+  border-radius: 4px;
 }
 
 .error-message {
   color: #dc3545;
-  background-color: #f8d7da;
-  padding: 10px;
-  border-radius: 4px;
   margin-top: 15px;
-  text-align: center;
+  padding: 10px;
+  background-color: #f8d7da;
+  border-radius: 4px;
 }
 
-/* Responsive adjustments */
+/* Responsive styles */
 @media (max-width: 1200px) {
   .assignment-container {
     grid-template-columns: 1fr;
@@ -1328,36 +1439,25 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
   
-  .assignment-details {
-    grid-template-columns: 1fr;
+  .report-filters, .submissions-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
   
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .report-filters, .submissions-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .filter-select {
-    width: 100%;
-  }
-  
-  .refresh-btn {
-    width: 100%;
+  .modal-content {
+    width: 95%;
+    padding: 15px;
   }
 }
 
 @media (max-width: 480px) {
   .tab-navigation {
     flex-direction: column;
-  }
-  
-  .assign-options {
-    flex-direction: column;
-    gap: 10px;
   }
   
   .assignment-actions, .submission-actions, .modal-actions {
