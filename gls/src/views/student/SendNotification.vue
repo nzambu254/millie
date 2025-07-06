@@ -46,6 +46,14 @@
         </div>
         
         <div v-if="reportData" class="report-results">
+          <div class="report-header">
+            <h3>Notifications Report</h3>
+            <button class="download-btn" @click="downloadReportPDF" :disabled="downloadingPDF">
+              <span v-if="downloadingPDF">Generating PDF...</span>
+              <span v-else>📄 Download PDF</span>
+            </button>
+          </div>
+          
           <div class="report-cards">
             <div class="report-card">
               <h3>Total Notifications</h3>
@@ -119,12 +127,35 @@
             </div>
             <div class="notification-actions">
               <button @click="markAsRead(notification)" v-if="!notification.read">Mark as Read</button>
-              <button @click="deleteNotification(notification)" class="delete-btn">Delete</button>
+              <button @click="confirmDelete(notification)" class="delete-btn">Delete</button>
             </div>
           </div>
         </div>
         <div v-else class="no-notifications">
           <p>No notifications found.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click="closeDeleteModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3>Confirm Delete</h3>
+          <button class="close-btn" @click="closeDeleteModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this notification?</p>
+          <div class="notification-preview">
+            <strong>{{ notificationToDelete?.subject }}</strong>
+            <p>{{ notificationToDelete?.message }}</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel-btn" @click="closeDeleteModal">Cancel</button>
+          <button class="confirm-delete-btn" @click="deleteConfirmed" :disabled="deleting">
+            {{ deleting ? 'Deleting...' : 'Yes, Delete' }}
+          </button>
         </div>
       </div>
     </div>
@@ -168,6 +199,10 @@ const errorMessage = ref('')
 const reportData = ref(null)
 const timeChart = ref(null)
 const readStatusChart = ref(null)
+const downloadingPDF = ref(false)
+const showDeleteModal = ref(false)
+const notificationToDelete = ref(null)
+const deleting = ref(false)
 
 const newMessage = ref({
   subject: '',
@@ -287,19 +322,35 @@ const markAsRead = async (notification) => {
   }
 }
 
-const deleteNotification = async (notification) => {
-  if (!authStore.user) {
+const confirmDelete = (notification) => {
+  notificationToDelete.value = notification
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  notificationToDelete.value = null
+  deleting.value = false
+}
+
+const deleteConfirmed = async () => {
+  if (!authStore.user || !notificationToDelete.value) {
     errorMessage.value = 'You must be logged in to perform this action'
     return
   }
 
-  if (confirm('Are you sure you want to delete this notification?')) {
-    try {
-      await deleteDoc(doc(db, 'notifications', notification.id))
-    } catch (error) {
-      console.error('Error deleting notification:', error)
-      errorMessage.value = 'Failed to delete notification'
-    }
+  try {
+    deleting.value = true
+    await deleteDoc(doc(db, 'notifications', notificationToDelete.value.id))
+    closeDeleteModal()
+    successMessage.value = 'Notification deleted successfully'
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 3000)
+  } catch (error) {
+    console.error('Error deleting notification:', error)
+    errorMessage.value = 'Failed to delete notification'
+    deleting.value = false
   }
 }
 
@@ -419,6 +470,125 @@ const generateReport = async () => {
   }
 }
 
+const downloadReportPDF = async () => {
+  if (!reportData.value) return
+
+  try {
+    downloadingPDF.value = true
+    
+    // Create a new jsPDF instance
+    const { jsPDF } = window.jspdf
+    const doc = new jsPDF()
+
+    // Set up the document
+    doc.setFontSize(20)
+    doc.text('Notifications Report', 20, 20)
+    
+    // Add user info
+    doc.setFontSize(12)
+    doc.text(`User: ${authStore.user.displayName || authStore.user.email || 'Anonymous'}`, 20, 35)
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 45)
+    doc.text(`Time Range: ${getTimeRangeLabel(reportFilters.value.timeRange)}`, 20, 55)
+
+    // Add statistics
+    doc.setFontSize(16)
+    doc.text('Statistics', 20, 75)
+    
+    doc.setFontSize(12)
+    let yPosition = 90
+    doc.text(`Total Notifications: ${reportData.value.totalNotifications}`, 20, yPosition)
+    yPosition += 10
+    doc.text(`Unread Notifications: ${reportData.value.unreadCount} (${reportData.value.unreadPercentage}%)`, 20, yPosition)
+    yPosition += 10
+    doc.text(`Messages Sent: ${reportData.value.sentCount} (${reportData.value.sentPercentage}%)`, 20, yPosition)
+    yPosition += 10
+    doc.text(`Messages Received: ${reportData.value.receivedCount} (${reportData.value.receivedPercentage}%)`, 20, yPosition)
+
+    // Add charts as images
+    yPosition += 20
+    if (timeChartInstance && readStatusChartInstance) {
+      doc.text('Charts', 20, yPosition)
+      yPosition += 10
+      
+      try {
+        // Add time chart
+        const timeChartCanvas = timeChart.value
+        const timeChartImgData = timeChartCanvas.toDataURL('image/png')
+        doc.addImage(timeChartImgData, 'PNG', 20, yPosition, 80, 60)
+        
+        // Add read status chart
+        const readStatusChartCanvas = readStatusChart.value
+        const readStatusChartImgData = readStatusChartCanvas.toDataURL('image/png')
+        doc.addImage(readStatusChartImgData, 'PNG', 110, yPosition, 80, 60)
+        
+        yPosition += 70
+      } catch (chartError) {
+        console.warn('Could not add charts to PDF:', chartError)
+      }
+    }
+
+    // Add detailed notification list if there's space
+    if (yPosition < 200 && reportData.value.notifications.length > 0) {
+      doc.addPage()
+      doc.setFontSize(16)
+      doc.text('Detailed Notifications', 20, 20)
+      
+      yPosition = 35
+      doc.setFontSize(10)
+      
+      reportData.value.notifications.slice(0, 20).forEach((notification, index) => {
+        if (yPosition > 270) {
+          doc.addPage()
+          yPosition = 20
+        }
+        
+        const date = notification.createdAt?.toDate?.()
+        const dateStr = date ? date.toLocaleDateString() : 'Unknown'
+        
+        doc.text(`${index + 1}. ${notification.subject || 'No Subject'}`, 20, yPosition)
+        yPosition += 7
+        doc.text(`   Date: ${dateStr} | Status: ${notification.read ? 'Read' : 'Unread'}`, 20, yPosition)
+        yPosition += 7
+        
+        // Truncate long messages
+        const message = notification.message || 'No message'
+        const truncatedMessage = message.length > 80 ? message.substring(0, 80) + '...' : message
+        doc.text(`   Message: ${truncatedMessage}`, 20, yPosition)
+        yPosition += 10
+      })
+      
+      if (reportData.value.notifications.length > 20) {
+        doc.text(`... and ${reportData.value.notifications.length - 20} more notifications`, 20, yPosition)
+      }
+    }
+
+    // Save the PDF
+    const fileName = `notifications-report-${new Date().toISOString().split('T')[0]}.pdf`
+    doc.save(fileName)
+    
+    successMessage.value = 'Report downloaded successfully!'
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 3000)
+    
+  } catch (error) {
+    console.error('Error generating PDF:', error)
+    errorMessage.value = 'Failed to generate PDF. Please try again.'
+  } finally {
+    downloadingPDF.value = false
+  }
+}
+
+const getTimeRangeLabel = (timeRange) => {
+  switch (timeRange) {
+    case '7days': return 'Last 7 Days'
+    case '30days': return 'Last 30 Days'
+    case '90days': return 'Last 90 Days'
+    case 'all': return 'All Time'
+    default: return 'Unknown'
+  }
+}
+
 const renderCharts = () => {
   // Destroy existing charts if they exist
   if (timeChartInstance) {
@@ -531,6 +701,22 @@ const renderCharts = () => {
   })
 }
 
+// Load jsPDF library
+const loadJsPDF = () => {
+  return new Promise((resolve, reject) => {
+    if (window.jspdf) {
+      resolve()
+      return
+    }
+    
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
 // Watch for auth state changes
 watch(() => authStore.user, (newUser) => {
   if (newUser) {
@@ -545,7 +731,14 @@ watch(() => authStore.user, (newUser) => {
   }
 }, { immediate: true })
 
-onMounted(() => {
+onMounted(async () => {
+  // Load jsPDF library
+  try {
+    await loadJsPDF()
+  } catch (error) {
+    console.error('Failed to load jsPDF:', error)
+  }
+  
   // Initial fetch if user is already authenticated
   if (authStore.user) {
     fetchNotifications()
@@ -638,7 +831,7 @@ onUnmounted(() => {
   min-height: 100px;
 }
 
-.submit-btn, .generate-btn {
+.submit-btn, .generate-btn, .download-btn {
   background-color: #4a6cf7;
   color: white;
   border: none;
@@ -651,14 +844,24 @@ onUnmounted(() => {
 }
 
 .submit-btn:hover:not(:disabled),
-.generate-btn:hover:not(:disabled) {
+.generate-btn:hover:not(:disabled),
+.download-btn:hover:not(:disabled) {
   background-color: #3a5bd9;
 }
 
 .submit-btn:disabled,
-.generate-btn:disabled {
+.generate-btn:disabled,
+.download-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.download-btn {
+  background-color: #28a745;
+}
+
+.download-btn:hover:not(:disabled) {
+  background-color: #218838;
 }
 
 .notification-filters {
@@ -699,13 +902,8 @@ onUnmounted(() => {
   border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-  transition: background 0.3s ease;
-}
-
-.notification-item:last-child {
-  border-bottom: none;
+  align-items: center;
+  transition: background-color 0.2s;
 }
 
 .notification-item.unread {
@@ -713,90 +911,75 @@ onUnmounted(() => {
   border-left: 4px solid #4a6cf7;
 }
 
+.notification-item:hover {
+  background-color: #f5f5f5;
+}
+
 .notification-content {
   flex: 1;
 }
 
 .notification-content h3 {
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   color: #2c3e50;
   font-size: 18px;
 }
 
 .notification-content p {
-  color: #666;
-  margin: 10px 0;
+  margin: 0 0 10px 0;
+  color: #555;
   line-height: 1.5;
 }
 
 .notification-meta {
-  font-size: 14px;
-  color: #999;
   display: flex;
-  justify-content: space-between;
-  margin-top: 15px;
-  flex-wrap: wrap;
-  gap: 10px;
+  gap: 15px;
+  font-size: 13px;
+  color: #777;
 }
 
 .notification-actions {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .notification-actions button {
-  padding: 6px 12px;
-  background: none;
-  border: 1px solid #4a6cf7;
-  color: #4a6cf7;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: 500;
-  border-radius: 4px;
+  font-size: 13px;
   transition: all 0.2s;
-  white-space: nowrap;
 }
 
-.notification-actions button:hover {
-  background: #4a6cf7;
+.notification-actions button:not(.delete-btn) {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.notification-actions button:not(.delete-btn):hover {
+  background-color: #dee2e6;
+}
+
+.delete-btn {
+  background-color: #dc3545;
   color: white;
 }
 
-.notification-actions .delete-btn {
-  border-color: #dc3545;
-  color: #dc3545;
+.delete-btn:hover {
+  background-color: #c82333;
 }
 
-.notification-actions .delete-btn:hover {
-  background: #dc3545;
-  color: white;
-}
-
-.success-message {
-  margin-top: 15px;
-  padding: 12px;
-  background-color: #d4edda;
-  color: #155724;
-  border-radius: 4px;
-  border: 1px solid #c3e6cb;
-}
-
-.error-message {
-  margin-top: 15px;
-  padding: 12px;
-  background-color: #f8d7da;
-  color: #721c24;
-  border-radius: 4px;
-  border: 1px solid #f5c6cb;
-}
-
-.no-notifications, .no-report {
+.no-notifications {
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: #777;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Report Section Styles */
+/* Report Styles */
 .report-filters {
   display: flex;
   gap: 20px;
@@ -804,16 +987,18 @@ onUnmounted(() => {
   margin-bottom: 20px;
 }
 
-.report-filters .form-group {
-  margin-bottom: 0;
-  flex: 1;
-}
-
 .report-results {
   background: white;
   padding: 25px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
 .report-cards {
@@ -828,32 +1013,34 @@ onUnmounted(() => {
   padding: 20px;
   border-radius: 8px;
   text-align: center;
-  border-left: 4px solid #4a6cf7;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .report-card h3 {
   margin-top: 0;
-  color: #2c3e50;
+  margin-bottom: 15px;
   font-size: 16px;
+  color: #555;
 }
 
 .stat-value {
   font-size: 28px;
   font-weight: bold;
-  margin: 10px 0;
-  color: #4a6cf7;
+  margin: 0;
+  color: #2c3e50;
 }
 
 .stat-percentage {
   font-size: 14px;
-  color: #666;
-  margin: 0;
+  color: #28a745;
+  margin: 5px 0 0 0;
 }
 
 .report-charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 30px;
+  margin-top: 30px;
 }
 
 .chart-container {
@@ -865,33 +1052,152 @@ onUnmounted(() => {
 
 .chart-container h3 {
   margin-top: 0;
+  margin-bottom: 20px;
   text-align: center;
+  color: #555;
+}
+
+.no-report {
+  text-align: center;
+  padding: 40px;
+  color: #777;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
   color: #2c3e50;
 }
 
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #777;
+  padding: 0;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.notification-preview {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
+
+.confirm-delete-btn {
+  padding: 10px 20px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.confirm-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success and Error Messages */
+.success-message {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background-color: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+  border: 1px solid #c3e6cb;
+}
+
+.error-message {
+  margin-top: 15px;
+  padding: 10px 15px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border-radius: 4px;
+  border: 1px solid #f5c6cb;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
+  .report-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .report-charts {
+    grid-template-columns: 1fr;
+  }
+  
   .notification-item {
     flex-direction: column;
     gap: 15px;
   }
   
   .notification-actions {
-    flex-direction: row;
-    align-self: stretch;
-  }
-  
-  .notification-meta {
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .report-filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .report-charts {
-    grid-template-columns: 1fr;
+    align-self: flex-end;
   }
 }
-</style>async 
+</style>
